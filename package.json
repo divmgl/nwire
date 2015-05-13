@@ -1,0 +1,34 @@
+{
+  "name": "nwire",
+  "version": "0.1.0",
+  "description": "Inspirational dependency injection in Node.js.",
+  "main": "nwire.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/divmgl/nwire.git"
+  },
+  "keywords": [
+    "ioc",
+    "injection",
+    "dependency",
+    "inject"
+  ],
+  "author": "Dexter Miguel",
+  "license": "GPL",
+  "bugs": {
+    "url": "https://github.com/divmgl/nwire/issues"
+  },
+  "homepage": "https://github.com/divmgl/nwire#readme",
+  "devDependencies": {
+    "chai": "^2.3.0",
+    "grunt": "^0.4.5",
+    "grunt-contrib-watch": "^0.6.1",
+    "grunt-karma": "^0.10.1",
+    "grunt-mocha-test": "^0.12.7",
+    "karma": "^0.12.31",
+    "mocha": "^2.2.4"
+  }
+}

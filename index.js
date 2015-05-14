@@ -1,66 +1,67 @@
 'use strict';
-var path = require('path');
+module.exports = function nwire(config, callback) {
+  // Validate configuration object
+  if (!config || !config.packages) {
+    var err = "Please provide a valid configuration object.";
+    if (!callback) throw err;
+    return callback(err);
+  }
 
-var Application = function(config) {
+  var path = require('path');
   var base = config.url || '';
   var definitions = config.packages;
-  var self = this;
 
-  self.packages = {};
+  // Validate package definitions
+  if (!definitions || definitions instanceof Array ||
+    !(definitions instanceof Object)) throw "Invalid package definitions.";
 
-  if (definitions == null ||
-    definitions instanceof Array ||
-    !(definitions instanceof Object)) {
-    throw "Invalid package definitions.";
-  }
+  // Set up a wiring container that injects all necessary components into
+  // the packages provided
+  var Wiring = function() {
+    var self = this;
+    self.packages = {};
 
-  var loadDefinition = function(definition) {
-    var previous = self.packages[definition];
-    if (previous != null) return previous;
+    var load = function(name) { // Responsible for loading packages
+      if (typeof(name) !== 'string') throw "Invalid package definition.";
 
-    if (typeof(definition) !== 'string') throw "Invalid package definition.";
+      // If a package already exists with the same name, do not attempt to
+      // overwrite it. Return the existing package.
+      var loaded = self.packages[name];
+      if (loaded) return loaded;
 
-    var pkg, imports = {};
+      var pkg, imports = {};
 
-    try {
-      pkg = require(path.join(base, 'node_modules', definition));
-    } catch (e) {
-      pkg = require(path.join(base, definition));
+      try { // Try to load an NPM module first
+        pkg = require(path.join(base, 'node_modules', definitions[name]));
+      } catch (e) { // Try to load the module through the base directory
+        pkg = require(path.join(base, definitions[name]));
+      }
+
+      // If a package is dependent on other packages, it's time to load them.
+      if (pkg.hasOwnProperty('needs') && pkg.needs instanceof Array)
+        pkg.needs.forEach(function(dependencyName) {
+          self.packages[dependencyName] = load(dependencyName);
+          imports[dependencyName] = self.packages[dependencyName];
+        });
+
+      // If package implements the fn function then inject the necessary
+      // packages and replace the package signature with the object it
+      // returns
+      if (pkg.hasOwnProperty('fn')) pkg = pkg.fn(imports);
+
+      return pkg;
     }
 
-    if (pkg.hasOwnProperty('needs') &&
-      pkg.needs instanceof Array) {
-      pkg.needs.forEach(function(need) {
-        self.packages[need] = loadDefinition(definitions[need]);
-        imports[need] = self.packages[need];
-      });
-    }
-
-    if (pkg.hasOwnProperty('fn')) {
-      pkg = pkg.fn(imports);
-    }
-
-    return pkg;
-  }
-
-  for (var definition in definitions) {
-    self.packages[definition] = loadDefinition(definitions[definition]);
-  }
-}
-
-module.exports = function nwire(config, callback) {
-  if (config == null ||
-    config.packages == null) {
-    var err = "Please provide a valid configuration object.";
-    if (callback) return callback(err);
-    else throw err;
+    for (var definition in definitions)
+      if (definition) self.packages[definition] = load(definition);
   }
 
   try {
-    var app = new Application(config);
-    if (callback) callback(null, app);
+    var app = new Wiring();
+    if (!callback) return app;
+    callback(null, app);
   } catch (err) {
-    if (callback) callback(err);
-    else throw err;
+    if (!callback) throw err;
+    callback(err);
   }
 }

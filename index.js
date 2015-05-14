@@ -40,34 +40,6 @@ var Application = function(config) {
       pkg = pkg.fn(imports);
     }
 
-    // if (pkg.hasOwnProperty('needs') &&
-    //   pkg.needs instanceof Array) {
-
-    //   pkg.needs.forEach(function(need) {
-    //     self.packages[need] = loadDefinition(definitions[need]);
-    //   });
-    // }
-
-    // if (pkg.hasOwnProperty('fn')) {
-    //   var imports = {};
-    //   if (pkg.needs) {
-    //     var needs = pkg.needs;
-
-    //     console.log('starting to import');
-
-    //     if (needs != null && !(needs instanceof Array))
-    //       throw "Invalid package definition on (needs).";
-
-    //     console.log(needs);
-
-    //     needs.forEach(function(need) {
-    //       imports[need] = self.packages[need];
-    //     });
-    //   }
-
-    //   pkg = pkg.fn(imports);
-    // }
-
     return pkg;
   }
 

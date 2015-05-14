@@ -41,7 +41,7 @@ Although many Node.js dependency injection modules exist, most require lots of b
 
 ### Package definition 
 
-Packages will need to expose an  `fn` function that returns the object that will be injected in other modules. For instance, consider the following authentication package that provides login and logout functionality.
+Packages will need to expose an  `fn` function that returns the object that will be injected in other packages. For instance, consider the following authentication package that provides login and logout functionality.
 
 ```js
 // auth.js

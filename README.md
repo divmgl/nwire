@@ -29,8 +29,8 @@ module.exports.fn = function(imports){
 ```js
 // config.js
 module.exports = {
-  url: __dirname,
-  packages: {
+  url: __dirname, // Base URL
+  packages: { // Packages to be injected
     'server': './server',
     'express': 'express'
   }

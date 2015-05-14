@@ -70,7 +70,7 @@ This package resolves an object that exposes two functions: `login` and `logout`
 module.exports.needs = ['auth'];
 module.exports.fn = function(imports) {
   var auth = imports.auth;
-  login('testing', '123', function(err){
+  auth.login('testing', '123', function(err){
     // Handle whether user is authorized
   });
 }

@@ -11,13 +11,7 @@ Here's an example using Express.js.
 ```js
 // index.js
 var wire = require('nwire');
-var config = { // This can go in a config.js
-  url: __dirname, // Base URL 
-  packages: { // Packages to be injected
-    'server': './server',
-    'express': 'express'
-  }
-}
+var config = require('./config');
 
 wire(config, function(err, app){ // Composite root
   app.packages.server.listen(3000);
@@ -30,6 +24,16 @@ module.exports.fn = function(imports){
   var express = imports.express;
   var app = express();
   return app;
+}
+```
+```js
+// config.js
+module.exports = {
+  url: __dirname,
+  packages: {
+    'server': './server',
+    'express': 'express'
+  }
 }
 ```
 

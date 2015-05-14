@@ -75,7 +75,7 @@ module.exports.fn = function(imports) {
   });
 }
 ```
-If the `fn` property is not provided, nwire.js will not perform any dependency injection but will still load the package into memory. If the `needs` property is not provided, the `imports` parameter will be empty.
+If the `fn` property is not provided, nwire.js will not perform any dependency injection and will load the entire module into memory. If the `needs` property is not provided, the `imports` parameter will be empty.
 
 ### Package declaration
 

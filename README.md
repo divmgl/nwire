@@ -1,4 +1,4 @@
-# nwire
+# nwire.js
 Inspirational dependency injection in Node.js.
 
 ## Installation
@@ -19,7 +19,7 @@ var config = { // This can go in a config.js
   }
 }
 
-wire(config, function(err, app){
+wire(config, function(err, app){ // Composite root
   app.packages.server.listen(3000);
 });
 ```
@@ -32,3 +32,84 @@ module.exports.fn = function(imports){
   return app;
 }
 ```
+
+## Why?
+
+Although many Node.js dependency injection modules exist, most require lots of boilerplate or are simply too cumbersome to use. nwire.js focus is to be an extremely simple but effective dependency injection solution.
+
+## Creating packages
+
+### Package definition 
+
+Packages will need to expose an  `fn` function that returns the object that will be injected in other modules. For instance, consider the following authentication package that provides login and logout functionality.
+
+```js
+// auth.js
+module.exports.fn = function(imports) {
+  var login = function login(username, password, callback){
+    // Perform authentication here...
+  }
+  var logout = function logout(callback) { }
+  
+  return { 
+    login: login,
+    logout: logout 
+  }
+}
+```
+This package resolves an object that exposes two functions: `login` and `logout`. The resolved object is then injected in  other packages that require it through the `needs` property.
+
+```js
+// server.js
+module.exports.needs = ['auth'];
+module.exports.fn = function(imports) {
+  var auth = imports.auth;
+  login('testing', '123', function(err){
+    // Handle whether user is authorized
+  });
+}
+```
+
+### Package declaration
+
+In order to properly inject packages, nwire.js requires a configuration object. The object must contain `url` and `packages` properties in order for nwire.js to create the wiring needed for dependency injection.
+
+The `url` property allows nwire.js to resolve packages without needing their absolute paths. Therefore, in most configurations assigning `__dirname` to the `url` property will do just fine. This property is required or else nwire.js will resolve modules from within its directory.
+
+The `packages` property assigns a name and location for every package. It must contain an object where property names define package names and property values are corresponding locations.
+
+Consider this sample configuration object.
+```js
+// config.js
+var path = require('path');
+module.exports = {
+  url: path.join('src', __dirname),
+  packages: {
+    'app': './server',
+    'database': './db',
+    'express': 'express',
+    'morgan': 'morgan',
+    'passport': 'passport'
+  }
+};
+```
+
+Here we can see that the packages `app`, `database`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that require them. Assuming that the `app` module looks like the following code, it will now be able to request each package through its `needs` property.
+
+```js
+// server.js
+module.exports.needs = ['database', 'express', 'morgan', 'passport'];
+module.exports.fn = function(import){ 
+  // import now contains four properties each named after the injected packages
+  var app = import.express();
+}
+```
+
+## Upcoming improvements
+
+nwire.js is in its infancy. Therefore, there are quite a bit of improvements that can be made to the module. Here are some items that are being considered and may be included in a future update.
+
+* Better tests that do not require boilerplate
+* Considerations to remove dependency on Node's require thus not needing to supply base URL
+* Circular dependency prevention
+* Benchmarking for memory management and overall performance

@@ -2,7 +2,7 @@
   "name": "nwire",
   "version": "0.1.0",
   "description": "Inspirational dependency injection in Node.js.",
-  "main": "nwire.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -29,6 +29,7 @@
     "grunt-karma": "^0.10.1",
     "grunt-mocha-test": "^0.12.7",
     "karma": "^0.12.31",
+    "lodash": "^3.8.0",
     "mocha": "^2.2.4"
   }
 }

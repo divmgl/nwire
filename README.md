@@ -83,7 +83,7 @@ Consider this sample configuration object.
 // config.js
 var path = require('path');
 module.exports = {
-  url: path.join('src', __dirname),
+  url: path.join(__dirname, 'src'),
   packages: {
     'app': './server',
     'database': './db',

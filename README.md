@@ -9,7 +9,7 @@ Inspirational dependency injection in Node.js.
 
 ## Example
 
-Bootstrapping a server using Express.js:
+Bootstrapping a simple server using Express.js:
 
 ```js
 // index.js
@@ -17,16 +17,19 @@ var wire = require('nwire');
 var config = require('./config');
 
 wire(config, function(err, app){ // Composite root
+  if (err) throw err; // Something happened while building dependencies
   app.packages.server.listen(3000);
 });
 ```
 ```js
 // server.js
 module.exports.needs = ['express'];
-module.exports.fn = function(imports){
-  var express = imports.express;
-  var app = express();
-  return app;
+module.exports.fn = function($){
+  var app = $.express();
+
+  // Add your routes and configuration here
+  
+  return app; 
 }
 ```
 ```js
@@ -42,7 +45,7 @@ module.exports = {
 
 ## Why?
 
-Testing your modules is important, but most Node.js IoC solutions require writing lots of boilerplate or are simply too cumbersome to use. nwire.js is an extremely simple but effective dependency injection solution. 
+`nwire.js` was made to simplify Node.js dependency injection. It encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
 
 ## Creating packages
 
@@ -71,20 +74,20 @@ This package resolves an object that exposes two functions: `login` and `logout`
 ```js
 // server.js
 module.exports.needs = ['auth'];
-module.exports.fn = function(imports) {
-  var auth = imports.auth;
+module.exports.fn = function(imports) { // You can use $ for short
+  var auth = imports.auth; // The auth module is injected
   auth.login('testing', '123', function(err){
     // Handle whether user is authorized
   });
 }
 ```
-If the `fn` property is not provided, nwire.js will not perform any dependency injection and will load the entire module into memory. If the `needs` property is not provided, the `imports` parameter will be empty.
+If the `fn` property is not provided, nwire.js will not perform any dependency injection. If the `needs` property is not provided, the `imports` parameter will be empty.
 
-### Package declaration
+### Package discovery
 
 In order to perform dependency injection, you must feed nwire.js a configuration object containing the `url` and `packages` properties.
 
-The `url` property allows nwire.js to resolve packages without needing their absolute paths. In most configurations, assigning `__dirname` to the `url` property will do. If this property is not provided, nwire.js will resolve modules from within its own directory.
+The `url` property allows nwire.js to resolve packages without needing their absolute paths. In most configurations, assigning `__dirname` to the `url` property will do. If this property is not provided, nwire.js will attempt to resolve modules from within its own directory.
 
 The `packages` property assigns a name and location for every package. It must contain an object where property names define package names and property values are corresponding locations.
 
@@ -115,11 +118,12 @@ module.exports.fn = function(import){
 }
 ```
 
-## Upcoming improvements
+## Project status
 
-nwire.js is in its infancy. Therefore, there are quite a bit of improvements that can be made to the module. Here are some items that are being considered and may be included in a future update.
+nwire.js is in its infancy and can be improved. The following items are currently being worked on:
 
-* Better tests that do not require boilerplate
-* Considerations to remove dependency on Node's require thus not needing to supply base URL
+* Better tests
 * Circular dependency prevention
 * Benchmarking for memory management and overall performance
+
+If you feel that you have a feature that would be useful to add, fork it and open a pull request.

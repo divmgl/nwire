@@ -42,7 +42,7 @@ module.exports = {
 
 ## Why?
 
-Many Node.js IoC modules exist. However, most require writing lots of boilerplate and others are simply too cumbersome to use. nwire.js is an extremely simple but effective dependency injection solution.
+Testing your modules is important, but most Node.js IoC solutions require writing lots of boilerplate or are simply too cumbersome to use. nwire.js is an extremely simple but effective dependency injection solution. 
 
 ## Creating packages
 

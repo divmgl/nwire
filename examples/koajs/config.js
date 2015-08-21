@@ -2,6 +2,8 @@ module.exports = {
   url: __dirname,
   packages: {
     'server': './server',
-    'koa': 'koa'
+    'koa': 'koa',
+    'winston': 'winston',
+    'http': 'http'
   }
 }

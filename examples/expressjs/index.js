@@ -2,5 +2,6 @@ var wire = require('../../');
 var config = require('./config');
 
 wire(config, function(err, app) { // Composite root
-  app.packages.server.listen(3000);
+  if (err) throw err;
+  app.packages.server.bootstrap(1337);
 });

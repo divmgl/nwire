@@ -24,6 +24,8 @@ module.exports = function nwire(config, callback) {
     var load = function(name) { // Responsible for loading packages
       if (typeof(name) !== 'string') throw "Invalid package definition.";
 
+      if (!definitions[name]) return undefined;
+
       // If a package already exists with the same name, do not attempt to
       // overwrite it. Return the existing package.
       var loaded = self.packages[name];
@@ -31,10 +33,14 @@ module.exports = function nwire(config, callback) {
 
       var pkg, imports = {};
 
-      try { // Try to load an NPM module first
-        pkg = require(path.join(base, 'node_modules', definitions[name]));
-      } catch (e) { // Try to load the module through the base directory
-        pkg = require(path.join(base, definitions[name]));
+      try { // Try to load a system module first
+        pkg = require(definitions[name])
+      } catch (e) {
+        try { // Try to load an NPM module
+          pkg = require(path.join(base, 'node_modules', definitions[name]));
+        } catch (e) { // Try to load the module through the base directory
+          pkg = require(path.join(base, definitions[name]));
+        }
       }
 
       // If a package is dependent on other packages, it's time to load them.

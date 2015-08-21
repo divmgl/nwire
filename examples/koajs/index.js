@@ -1,8 +1,7 @@
 var wire = require('../../');
-var http = require('http');
 var config = require('./config');
 
-wire(config, function(err, app) {
-  var server = http.Server(app.packages.server.callback());
-  server.listen(1337);
+wire(config, function(err, app) { // Composite root
+  if (err) throw err;
+  app.packages.server.bootstrap(1337);
 });

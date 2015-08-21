@@ -1,7 +1,7 @@
 {
   "name": "nwire",
-  "version": "0.1.0",
-  "description": "Inspirational dependency injection in Node.js.",
+  "version": "0.1.1",
+  "description": "Simplified dependency injection in Node.js",
   "main": "index.js",
   "scripts": {
     "test": "gulp test"
@@ -17,7 +17,7 @@
     "inject"
   ],
   "author": "Dexter Miguel",
-  "license": "GPL",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/divmgl/nwire/issues"
   },

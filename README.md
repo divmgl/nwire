@@ -119,12 +119,6 @@ module.exports.fn = function(import){
 }
 ```
 
-## Project status
+## Suggestions and questions
 
-nwire.js is in its infancy and can be improved. The following items are currently being worked on:
-
-* Better tests
-* Circular dependency prevention
-* Benchmarking for memory management and overall performance
-
-If you feel that you have a feature that would be useful to add, fork it and open a pull request.
+If you have any suggestions or questions regarding this project, please open an issue. If you feel that you have a feature that would be useful to add, fork it and open a pull request.

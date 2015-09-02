@@ -1,74 +1,85 @@
 var expect = require('chai').expect;
-var wire = require('../');
 var _ = require('lodash');
-var config = {
+
+var wire = require('..');
+var leech = require('./mocks/leech');
+var seed = require('./mocks/seed');
+
+var configurationMock = {
   url: __dirname,
   packages: {
-    'leech': './leechModule',
-    'seed': './seedModule'
+    'leech': './mocks/leech',
+    'seed': './mocks/seed'
   }
 }
 
 describe('nwire', function() {
-  it('should return an object on callback', function(done) {
-    wire(config, function(err, app) {
-      expect(err).to.be.null;
-      expect(app).to.not.be.null;
-      expect(app).to.be.a('object');
-      done();
-    });
+  it('returns an object on callback', function() {
+    var app = wire({});
+
+    expect(app).to.not.be.null;
+    expect(app).to.be.a('object');
   });
 
-  it('should not accept an empty configuration', function(done) {
-    wire(null, function(err, app) {
-      expect(err).to.not.be.null;
-      done();
-    });
+  it('throws an error when empty configuration provided', function() {
+    expect(function() {
+      wire(null);
+    }).to.throw("Please provide a valid configuration object.");
+  });
+
+  it('throws an error when configuration parameter is not an object', function(){
+    expect(function(){
+      wire(String());
+    }).to.throw();
+  })
+
+  it('does not crash when module not found', function() {
+    expect(function() {
+      wire({
+        packages: {
+          'fake': './fake'
+        }
+      });
+    }).to.not.throw();
+  });
+
+  it('does not have an error on valid configuration', function() {
+    expect(function() {
+      wire(configurationMock)
+    }).to.not.throw();
   });
 });
 
 describe('nwire application', function() {
-  wire(config, function(err, app) {
-    it('should not have an error', function(done) {
-      expect(err).to.be.null;
-      done();
-    });
-
-    it('should have a packages object', function(done) {
-      expect(app.packages).to.be.a('object');
-      done();
-    });
-
-    it('should have two packages', function(done) {
-      expect(_.size(app.packages)).to.equal(2);
-      done();
-    });
-
-    it('leech package should be an object', function(done) {
-      expect(app.packages.leech).to.be.a('object');
-      done();
-    });
+  it('has a packages object', function() {
+    var app = wire({});
+    expect(app.packages).to.be.a('object');
   });
 
-  wire('chai', function(err, app) {
-    it('should throw an error when a package definition is not an object',
-      function(done) {
-        expect(err).to.not.be.null;
-        done();
-      });
+  it('has two packages when passed two valid definitions', function() {
+    var app = wire(configurationMock);
+    expect(_.size(app.packages)).to.equal(2);
+  });
+
+  it('has no packages when passed two invalid definitions', function(){
+    var app = wire({packages: {'1': './1', '2': './2'}});
+    expect(_.size(app.packages)).to.equal(0);
   });
 });
 
-describe('module', function() {
-  wire(config, function(err, app) {
-    it('should exist in application', function(done) {
-      expect(app.packages.leech).to.not.be.undefined;
-      done();
-    });
-
-    it('should have an object named generated', function(done) {
-      expect(app.packages.leech.generated).to.not.be.undefined;
-      done();
-    });
+describe('leech mock', function(){
+  it('has a consumed package', function(){
+    var app = wire(configurationMock);
+    expect(_.size(app.packages.leech.imports)).to.equal(1);
   });
+
+  it('has the consumed seed mock', function(){
+    var app = wire(configurationMock);
+    expect(app.packages.leech.imports.seed).to.not.be.undefined;
+  });
+
+  it('is able to access exposed children from seed mock', function(){
+    var app = wire(configurationMock);
+    expect(app.packages.leech.imports.seed.dummyFn).to.not.be.undefined;
+  })
 });

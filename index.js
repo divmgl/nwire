@@ -1,23 +1,21 @@
-'use strict';
 module.exports = function nwire(config, callback) {
-  // Validate configuration object
-  if (!config || !config.packages) {
-    var err = "Please provide a valid configuration object.";
-    if (!callback) throw err;
-    return callback(err);
-  }
-
-  var path = require('path');
-  var base = config.url || '';
-  var definitions = config.packages;
-
-  // Validate package definitions
-  if (!definitions || definitions instanceof Array ||
-    !(definitions instanceof Object)) throw "Invalid package definitions.";
+  'use strict';
 
   // Set up a wiring container that injects all necessary components into
   // the packages provided
   var Wiring = function() {
+    // Validate configuration object
+    if (!config || typeof config !== 'object')
+      throw "Please provide a valid configuration object.";
+
+    var path = require('path');
+    var base = config.url || '';
+    var definitions = config.packages || {};
+
+    // Validate package definitions
+    if (!definitions || definitions instanceof Array ||
+      !(definitions instanceof Object)) definitions = {};
+
     var self = this;
     self.packages = {};
 
@@ -38,8 +36,12 @@ module.exports = function nwire(config, callback) {
       } catch (e) {
         try { // Try to load an NPM module
           pkg = require(path.join(base, 'node_modules', definitions[name]));
-        } catch (e) { // Try to load the module through the base directory
-          pkg = require(path.join(base, definitions[name]));
+        } catch (er) { // Try to load the module through the base directory
+          try {
+            pkg = require(path.join(base, definitions[name]));  
+          } catch(err){
+            return null;
+          }
         }
       }
 
@@ -58,8 +60,11 @@ module.exports = function nwire(config, callback) {
       return pkg;
     }
 
-    for (var definition in definitions)
-      if (definition) self.packages[definition] = load(definition);
+    for (var definition in definitions) {
+      if (!definition) continue;
+      var fn = load(definition);
+      if (fn) self.packages[definition] = fn;
+    }
   }
 
   try {

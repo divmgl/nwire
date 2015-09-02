@@ -46,7 +46,7 @@ module.exports = {
 
 ## Why?
 
-`nwire.js` was made to simplify Node.js dependency injection. It encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
+Dependency injection shouldn't be complicated. `nwire.js` encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
 
 ## Creating packages
 

@@ -13,6 +13,14 @@ var configurationMock = {
   }
 }
 
+var circularConfigurationMock = {
+  url: __dirname,
+  packages: {
+    'leech': './mocks/circular/leech',
+    'seed': './mocks/circular/seed'
+  }
+}
+
 describe('nwire', function() {
   it('returns an object on callback', function() {
     var app = wire({});
@@ -65,6 +73,11 @@ describe('nwire application', function() {
     var app = wire({packages: {'1': './1', '2': './2'}});
     expect(_.size(app.packages)).to.equal(0);
   });
+
+  it('does not throw an error on circular dependencies', function(){
+    var app = wire(circularConfigurationMock);
+    expect(_.size(app.packages)).to.equal(2);
+  });
 });
 
 describe('leech mock', function(){
@@ -81,5 +94,10 @@ describe('leech mock', function(){
   it('is able to access exposed children from seed mock', function(){
     var app = wire(configurationMock);
     expect(app.packages.leech.imports.seed.dummyFn).to.not.be.undefined;
-  })
+  });
+
+  it('is able to access exposed children from seed circular dependency mock', function(){
+    var app = wire(circularConfigurationMock);
+    expect(app.packages.leech.imports.seed.dummyFn).to.not.be.undefined;
+  });
 });

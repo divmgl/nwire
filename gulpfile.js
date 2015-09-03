@@ -4,12 +4,12 @@ var plumber = require('gulp-plumber');
 var gutil = require('gulp-util');
 
 gulp.task('test', function() {
-  gulp.src('test/**/*.js')
+  gulp.src(['tests/**/*.js', '!tests/fixtures/**/*'])
     .pipe(plumber())
     .pipe(mocha({ reporter: 'spec'})
       .on('error', gutil.log));
 });
 
 gulp.task('watch:test', function(){
-  gulp.watch('**/*.js', ["test"]);
+  gulp.watch('index.js', ["test"]);
 });

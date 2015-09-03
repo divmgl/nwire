@@ -2,22 +2,22 @@ var expect = require('chai').expect;
 var _ = require('lodash');
 
 var wire = require('..');
-var leech = require('./mocks/leech');
-var seed = require('./mocks/seed');
+var leech = require('./fixtures/leech');
+var seed = require('./fixtures/seed');
 
-var configurationMock = {
+var configurationFixture = {
   url: __dirname,
   packages: {
-    'leech': './mocks/leech',
-    'seed': './mocks/seed'
+    'leech': './fixtures/leech',
+    'seed': './fixtures/seed'
   }
 }
 
-var circularConfigurationMock = {
+var circularConfigurationFixture = {
   url: __dirname,
   packages: {
-    'leech': './mocks/circular/leech',
-    'seed': './mocks/circular/seed'
+    'leech': './fixtures/circular/leech',
+    'seed': './fixtures/circular/seed'
   }
 }
 
@@ -53,7 +53,7 @@ describe('nwire', function() {
 
   it('does not have an error on valid configuration', function() {
     expect(function() {
-      wire(configurationMock)
+      wire(configurationFixture)
     }).to.not.throw();
   });
 });
@@ -65,7 +65,7 @@ describe('nwire application', function() {
   });
 
   it('has two packages when passed two valid definitions', function() {
-    var app = wire(configurationMock);
+    var app = wire(configurationFixture);
     expect(_.size(app.packages)).to.equal(2);
   });
 
@@ -75,29 +75,29 @@ describe('nwire application', function() {
   });
 
   it('does not throw an error on circular dependencies', function(){
-    var app = wire(circularConfigurationMock);
+    var app = wire(circularConfigurationFixture);
     expect(_.size(app.packages)).to.equal(2);
   });
 });
 
-describe('leech mock', function(){
+describe('leech package', function(){
   it('has a consumed package', function(){
-    var app = wire(configurationMock);
+    var app = wire(configurationFixture);
     expect(_.size(app.packages.leech.imports)).to.equal(1);
   });
 
-  it('has the consumed seed mock', function(){
-    var app = wire(configurationMock);
+  it('has the consumed seed package', function(){
+    var app = wire(configurationFixture);
     expect(app.packages.leech.imports.seed).to.not.be.undefined;
   });
 
-  it('is able to access exposed children from seed mock', function(){
-    var app = wire(configurationMock);
+  it('is able to access exposed children from seed package', function(){
+    var app = wire(configurationFixture);
     expect(app.packages.leech.imports.seed.dummyFn).to.not.be.undefined;
   });
 
-  it('is able to access exposed children from seed circular dependency mock', function(){
-    var app = wire(circularConfigurationMock);
+  it('is able to access exposed children from seed circular dependency package', function(){
+    var app = wire(circularConfigurationFixture);
     expect(app.packages.leech.imports.seed.dummyFn).to.not.be.undefined;
   });
 });

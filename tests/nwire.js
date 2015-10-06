@@ -81,9 +81,9 @@ describe('nwire application', function() {
 });
 
 describe('leech package', function(){
-  it('has a consumed package', function(){
+  it('should not have packages', function(){
     var app = wire(configurationFixture);
-    expect(_.size(app.packages.leech.imports)).to.equal(1);
+    expect(_.size(app.packages.leech.imports)).to.equal(0);
   });
 
   it('has the consumed seed package', function(){

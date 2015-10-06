@@ -64,7 +64,11 @@ module.exports = function nwire(config, callback) {
 
           if (!skipNeeds) {
             self.packages[dependencyName] = load(dependencyName, skip);
-            imports[dependencyName] = self.packages[dependencyName];
+            Object.defineProperty(imports, dependencyName, {
+              get: function(){
+                return self.packages[dependencyName];
+              }
+            });
           }
         });
 

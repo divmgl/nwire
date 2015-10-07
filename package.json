@@ -4,7 +4,8 @@
   "description": "Simplified dependency injection in Node.js",
   "main": "nwire.js",
   "scripts": {
-    "test": "mocha tests"
+    "test": "mocha spec",
+    "watch-test": "mocha spec -w"
   },
   "repository": {
     "type": "git",

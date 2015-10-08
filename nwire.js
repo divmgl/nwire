@@ -56,7 +56,7 @@ module.exports = function nwire(config, callback) {
           var definition = resolve(definitions[dependencyName]);
           var skip = false;
 
-          if (definition.needs)
+          if (definitions && definition.needs)
             for(var i = 0; i < definition.needs.length; i++){
               var need = definition.needs[i];
               if (need == name) skip = true;

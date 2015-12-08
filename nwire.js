@@ -1,98 +1,50 @@
-module.exports = function nwire(config, callback) {
-  'use strict';
+var Container = function(config, callback) {
+  if (typeof callback !== "function")
+    throw new Error("Please provide a callback function.")
 
-  // Set up a wiring container that injects all necessary components into
-  // the packages provided
-  var Wiring = function() {
-    // Validate configuration object
-    if (!config || typeof config !== 'object')
-      throw "Please provide a valid configuration object.";
+  var $ = {}; // Resolved packages
+  var decls = config.packages || config;
+  if (!decls) return callback(null, $);
 
-    var path = require('path');
-    var base = config.url || '';
-    var definitions = config.packages || {};
+  var resolve = function(decl) {
+    if ($[decl]) return $[decl];
 
-    // Validate package definitions
-    if (!definitions || definitions instanceof Array ||
-      !(definitions instanceof Object)) definitions = {};
+    var mod = decls[decl];
 
-    var self = this;
-    self.packages = {};
+    if (mod.fn && typeof mod.fn === "function" &&
+      mod.needs && mod.needs instanceof Array && !mod.ignore) {
+      var needs = {};
 
-    var load = function(name, skipNeeds) { // Responsible for loading packages
-      if (typeof(name) !== 'string') throw "Invalid package definition.";
+      $[decl] = {};
 
-      if (!definitions[name]) return undefined;
-
-      // If a package already exists with the same name, do not attempt to
-      // overwrite it. Return the existing package.
-      var loaded = self.packages[name];
-      if (loaded) return loaded;
-
-      var pkg, imports = {};
-
-      var resolve = function(name) {
-        try { // Try to load a system module first
-          return require(name)
-        } catch (e) {
-          try { // Try to load an NPM module
-            return require(path.join(base, 'node_modules', name));
-          } catch (er) { // Try to load the module through the base directory
-            try {
-              return require(path.join(base, name));
-            } catch (err) {
-              return null;
-            }
-          }
-        }
-      }
-
-      pkg = resolve(definitions[name]);
-      if (!pkg) return null;
-
-      // If a package is dependent on other packages, it's time to load them.
-      if (pkg.hasOwnProperty('needs') && pkg.needs instanceof Array)
-        pkg.needs.forEach(function(dependencyName) {
-          var definition = resolve(definitions[dependencyName]);
-          var skip = false;
-
-          if (definitions && definition.needs)
-            for(var i = 0; i < definition.needs.length; i++){
-              var need = definition.needs[i];
-              if (need == name) skip = true;
-            }
-
-          if (!skipNeeds) {
-            self.packages[dependencyName] = load(dependencyName, skip);
-            Object.defineProperty(imports, dependencyName, {
-              get: function(){
-                return self.packages[dependencyName];
-              }
-            });
+      mod.needs.forEach(function(need) {
+        Object.defineProperty(needs, need, {
+          get: function() {
+            if (!decls[need]) return null;
+            return $[need] || resolve(need);
           }
         });
+      });
 
-      // If package implements the fn function then inject the necessary
-      // packages and replace the package signature with the object it
-      // returns
-      if (pkg.hasOwnProperty('fn')) pkg = pkg.fn(imports);
-
-      return pkg;
+      if (!mod.construct) $[decl] = mod.fn(needs);
+      else Object.defineProperty($, decl, {
+        get: function() {
+          return new mod.fn(needs);
+        }
+      });
     }
 
-    for (var definition in definitions) {
-      if (!definition) continue;
-      var fn = load(definition);
-      if (fn) self.packages[definition] = fn;
-    }
+    $[decl] = $[decl] || mod;
+    return $[decl];
   }
 
   try {
-    var app = new Wiring();
-    if (!callback) return app;
-    callback(null, app);
+    for (var decl in decls) $[decl] = resolve(decl);
+    callback(null, $);
   } catch (err) {
-    if (!callback) throw err;
-    callback(err);
+    callback(err, null);
   }
 }
+
+
+module.exports = Container;

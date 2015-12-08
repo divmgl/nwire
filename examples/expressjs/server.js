@@ -1,6 +1,6 @@
-module.exports.needs = ['express', 'winston'];
+module.exports.needs = ['express-app', 'winston'];
 module.exports.fn = function($) {
-  var app = $.express();
+  var app = $["express-app"]();
 
   var bootstrap = function(port) {
     return app.listen(port, function() {

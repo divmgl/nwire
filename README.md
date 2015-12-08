@@ -17,40 +17,63 @@ Bootstrapping a simple server using Express.js:
 var wire = require('nwire');
 var config = require('./config');
 
-wire(config, function(err, app){ // Composite root
-  if (err) throw err; // Something happened while building dependencies
-  app.packages.server.listen(3000);
+wire(config, function(err, app){    // Composite root
+  if (err) throw err;               // Handle errors
+  app.server.listen(3000);          // Start your server
 });
 ```
 ```js
 // server.js
-module.exports.needs = ['express'];
-module.exports.fn = function($){
+module.exports.needs = ['express']; // What your package needs
+module.exports.fn = function($){    // Dependencies are injected through $
   var app = $.express();
 
   // Add your routes and configuration here
-  
-  return app; 
+
+  return app;
 }
 ```
 ```js
 // config.js
 module.exports = {
-  url: __dirname, // Base URL
-  packages: { // Packages to be injected
-    'server': './server',
-    'express': 'express'
-  }
+  'server': require('./server'),    // Provide packages
+  'express': require('express')
 }
 ```
 
 ## Why?
 
-Dependency injection shouldn't be complicated. `nwire.js` encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
+Dependency injection shouldn't be complicated. `nwire` encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
+
+## Creating the container
+
+You must feed `nwire` a configuration object containing the packages you wish to provide for injection.
+
+Consider this sample configuration object.
+```js
+// config.js
+module.exports = {
+  'app': require('./server'),
+  'redis-db': require('./db'),
+  'express': require('express'),
+  'morgan': require('morgan'),
+  'passport': require('passport')
+};
+```
+
+Here we can see that the packages `app`, `redis-db`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that need them. `nwire` will then inject all other four packages through the `imports` parameter for packages that contain the properties `fn` and `needs`.
+
+```js
+// server.js
+module.exports.needs = ['redis-db', 'express', 'morgan', 'passport'];
+module.exports.fn = function(import){ // You can use $ for short
+  // import now contains four properties each named after the injected packages
+  var app = import.express();
+  import["redis-db"].open();
+}
+```
 
 ## Creating packages
-
-### Package definition 
 
 Packages are comprised of two properties: `fn` and `needs`.
 
@@ -62,61 +85,62 @@ module.exports.fn = function(imports) {
   var login = function login(username, password, callback){
     // Perform authentication here...
   }
-  var logout = function logout(callback) { }
-  
-  return { 
+  var logout = function logout(callback) { /*...*/ }
+
+  return {
     login: login,
-    logout: logout 
+    logout: logout
   }
 }
 ```
-This package resolves an object that exposes two functions: `login` and `logout`. The resolved object is then injected in  other packages that require it through the `needs` property.
+This package returns an object that exposes two functions: `login` and `logout`. The returned object is then injected in  other packages that require it through the `needs` property.
 
 ```js
 // server.js
 module.exports.needs = ['auth'];
-module.exports.fn = function(imports) { // You can use $ for short
-  var auth = imports.auth; // The auth module is injected
-  auth.login('testing', '123', function(err){
+module.exports.fn = function($) {
+  $.auth.login('testing', '123', function(err, user){
     // Handle whether user is authorized
   });
 }
 ```
-If the `fn` property is not provided, nwire.js will not perform any dependency injection. If the `needs` property is not provided, the `imports` parameter will be empty.
+If the `fn` and `needs` properties are not provided, `nwire` will not perform any dependency injection.
 
-### Package discovery
+## Running the test suite
 
-In order to perform dependency injection, you must feed nwire.js a configuration object containing the `url` and `packages` properties.
-
-The `url` property allows nwire.js to resolve packages without needing their absolute paths. In most configurations, assigning `__dirname` to the `url` property will do. If this property is not provided, nwire.js will attempt to resolve modules from within its own directory.
-
-The `packages` property assigns a name and location for every package. It must contain an object where property names define package names and property values are corresponding locations.
-
-Consider this sample configuration object.
-```js
-// config.js
-var path = require('path');
-module.exports = {
-  url: path.join(__dirname, 'src'),
-  packages: {
-    'app': './server',
-    'database': './db',
-    'express': 'express',
-    'morgan': 'morgan',
-    'passport': 'passport'
-  }
-};
+```
+$ npm install
+$ npm test
 ```
 
-Here we can see that the packages `app`, `database`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that need them. Assuming that the `app` package looks like the following code, nwire.js will inject all other four packages through the `imports` parameter.
+## Breaking changes from v0.1
 
-```js
-// server.js
-module.exports.needs = ['database', 'express', 'morgan', 'passport'];
-module.exports.fn = function(import){ 
-  // import now contains four properties each named after the injected packages
-  var app = import.express();
+Release `v0.2` did away with string declarations for `config.js` files. This is to allow `nwire` applications to work with bundlers like Browserify and `system.js`. If your `config.js` file looked like this:
+
+```javascript
+module.exports = {
+  url: __dirname,
+  packages: {
+    'app': './app'
+  }
 }
+```
+
+You will now need to use CommonJS (or equivalent) to load your application.
+
+```javascript
+module.exports = {
+  'app': require('./app')
+}
+```
+
+Also, packages are now properties of the container returned by `nwire` rather than living under a `packages` object.
+
+```javascript
+wire({ /*...config...*/}, function(err, app) {
+  // app.packages.server.bootstrap(3000);
+  app.server.bootstrap(3000);
+});
 ```
 
 ## Suggestions and questions

@@ -1,8 +1,5 @@
 module.exports = {
-  url: __dirname,
-  packages: {
-    'server': './server',
-    'express': 'express',
-    'winston': 'winston'
-  }
+  'server': require('./server'),
+  'express-app': require('express'),
+  'winston': require('winston')
 }

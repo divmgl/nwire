@@ -1,9 +1,6 @@
 module.exports = {
-  url: __dirname,
-  packages: {
-    'server': './server',
-    'koa': 'koa',
-    'winston': 'winston',
-    'http': 'http'
-  }
+  'server': require('./server'),
+  'koa': require('koa'),
+  'winston': require('winston'),
+  'http': require('http')
 }

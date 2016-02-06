@@ -1,6 +1,6 @@
 {
   "name": "nwire",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Simplified dependency injection in Node.js",
   "main": "nwire.js",
   "scripts": {

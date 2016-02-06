@@ -9,6 +9,12 @@ describe('nwire', function() {
     });
   });
 
+  it('should throw an error when invalid callback', function() {
+    expect(function() {
+      wire({}, "string");
+    }).to.throw;
+  });
+
   it('should return a simple package', function(done) {
     wire({ 'prov': { value: 123 } }, function(err, app) {
       expect(app.prov.value).to.equal(123);
@@ -25,6 +31,21 @@ describe('nwire', function() {
       }
     }, function(err, app) {
       expect(app.cons.consumedValue).to.equal(123);
+      done();
+    });
+  });
+
+  it('should resolve nested dependencies within objects', function(done) {
+    wire({
+      'nested': {
+        'prov': { value: 123 },
+        'cons': {
+          needs: ['prov'],
+          fn: function($) { return { consumedValue: $.prov.value }; }
+        }
+      }
+    }, function(err, app) {
+      expect(app.nested.cons.consumedValue).to.equal(123);
       done();
     });
   });
@@ -118,9 +139,9 @@ describe('nwire', function() {
       }
     }, function (err, app){
       expect(err).to.equal(null);
-      expect(app).to.not.equal(null);
-      expect(app.cons.prov).to.equal(null);
-      expect(app.cons).to.not.equal(null);
+      expect(app).to.not.equal(undefined);
+      expect(app.cons.prov).to.equal(undefined);
+      expect(app.cons).to.not.equal(undefined);
       done();
     });
   });

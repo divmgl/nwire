@@ -1,50 +1,65 @@
-var Container = function(config, callback) {
+module.exports = function(config, callback) {
+  var $ = config || {}; // Composite root
+
   if (typeof callback !== "function")
     throw new Error("Please provide a callback function.")
 
-  var $ = {}; // Resolved packages
-  var decls = config.packages || config;
-  if (!decls) return callback(null, $);
+  var Declaration = function(root, parent) {
+    this.root = root;
+    this.parent = parent;
+  }
 
-  var resolve = function(decl) {
-    if ($[decl]) return $[decl];
+  Declaration.prototype.resolve = function(name) {
+    var self = this;
+    var decl = self.root[name];
 
-    var mod = decls[decl];
+    // Return the object found if contract implementation is not met
+    if (!decl || decl.ignore) return self.root;
 
-    if (mod.fn && typeof mod.fn === "function" &&
-      mod.needs && mod.needs instanceof Array && !mod.ignore) {
-      var needs = {};
-
-      $[decl] = {};
-
-      mod.needs.forEach(function(need) {
-        Object.defineProperty(needs, need, {
-          get: function() {
-            if (!decls[need]) return null;
-            return $[need] || resolve(need);
-          }
-        });
-      });
-
-      if (!mod.construct) $[decl] = mod.fn(needs);
-      else Object.defineProperty($, decl, {
-        get: function() {
-          return new mod.fn(needs);
+    if (!decl.fn || !decl.needs || typeof decl.fn !== "function"
+        || !(decl.needs instanceof Array))
+    {
+      if (typeof decl === 'object' && !(decl instanceof Array))
+        for (var member in decl) {
+          var declaration = new Declaration(decl, self);
+          self.root[name] = declaration.resolve(member);
         }
-      });
+
+      return self.root;
     }
 
-    $[decl] = $[decl] || mod;
-    return $[decl];
+    var needs = {};
+
+    decl.needs.forEach(function(need) {
+      Object.defineProperty(needs, need, {
+        get: function() {
+          var parent = self.parent || { root: {} };
+          return self.root[need] || parent.root[need];
+        }
+      });
+    });
+
+    if (!decl.construct) self.root[name] = self.root[name].fn(needs);
+    else Object.defineProperty(self.root, name, {
+      get: function() {
+        return new decl.fn(needs);
+      }
+    });
+
+    return self.root;
   }
 
   try {
-    for (var decl in decls) $[decl] = resolve(decl);
+    var member, declaration;
+
+    for(member in $) {
+      declaration = new Declaration($);
+      $ = declaration.resolve(member);
+    }
+
     callback(null, $);
   } catch (err) {
     callback(err, null);
   }
-}
+};
 
-
-module.exports = Container;

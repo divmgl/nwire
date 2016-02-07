@@ -125,41 +125,26 @@ module.exports = {
 }
 ```
 
+However you cannot inject nested objects, only their parents.
+
+```js
+// application.js
+module.exports.needs = [
+  "components",
+  "components.header"
+]
+module.exports.fn = function($) {
+  console.log($.components) // => Object
+  console.log($.components.header) // => Object
+  console.log($["components.header"]) // => Undefined
+}
+```
+
 ## Running the test suite
 
 ```
 $ npm install
 $ npm test
-```
-
-## Breaking changes from v0.1
-
-Release `v0.2` did away with string declarations for `config.js` files. This is to allow `nwire` applications to work with bundlers like Browserify and `system.js`. If your `config.js` file looked like this:
-
-```javascript
-module.exports = {
-  url: __dirname,
-  packages: {
-    'app': './app'
-  }
-}
-```
-
-You will now need to use CommonJS (or equivalent) to load your application.
-
-```javascript
-module.exports = {
-  'app': require('./app')
-}
-```
-
-Also, packages are now properties of the container returned by `nwire` rather than living under a `packages` object.
-
-```javascript
-wire({ /*...config...*/}, function(err, app) {
-  // app.packages.server.bootstrap(3000);
-  app.server.bootstrap(3000);
-});
 ```
 
 ## Suggestions and questions

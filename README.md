@@ -10,23 +10,23 @@ Simplified dependency injection in Node.js
 
 ## Example
 
-Bootstrapping a simple server using Express.js:
+Bootstrapping a simple server using Express:
 
 ```js
 // index.js
 var wire = require('nwire');
 var config = require('./config');
 
-var app = wire(config);  // Composite root
-app.server.listen(3000); // Start your server
+var app = wire(config);
+app.server.listen(3000);
 ```
 ```js
 // server.js
 module.exports.needs = ['express'];     
-module.exports.fn = function(imports) {
-  var app = imports.express();
-
-  // Add your routes and configuration here
+module.exports.fn = function(imports) { 
+  var app = imports.express(); // Injected by nwire 
+ 
+  // ... routes and configuration go here ...
 
   return app;
 }
@@ -45,63 +45,52 @@ Dependency injection shouldn't be complicated. `nwire` encourages loosely couple
 
 ## Creating the container
 
-You must feed `nwire` a configuration object containing the packages you wish to provide for injection.
+You must call `nwire` with an object containing the packages you wish to register. `nwire` will return a container.
 
-Consider this sample configuration object.
 ```js
 // config.js
 module.exports = {
   'app': require('./server'),
-  'redis-db': require('./db'),
   'express': require('express'),
   'morgan': require('morgan'),
   'passport': require('passport')
 };
 ```
-
-Here we can see that the packages `app`, `redis-db`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that need them. `nwire` will then inject all other four packages through the `imports` parameter for objects that contain the properties `fn` and `needs`.
-
 ```js
-// server.js
-module.exports.needs = ['redis-db', 'express', 'morgan', 'passport'];
-module.exports.fn = function(import){ // You can use $ for short
-  // import now contains four properties each named after the injected packages
-  var app = import.express();
-  import["redis-db"].open();
-}
+// index.js
+var app = nwire(require('./config')); // => Object
 ```
 
-## Creating packages
+## Performing dependency injection
 
-Packages are comprised of two properties: `fn` and `needs`.
-
-The `fn` function returns an object for injection in other packages. Consider the following authentication package that provides login and logout functionality.
+The container is just a standard object unless `nwire` detects packages that contain two properties: `fn` and `needs`. `nwire` will replace these packages with the return value of the `fn` function called with an array of resolved dependencies.
 
 ```js
 // auth.js
-module.exports.fn = function(imports) {
-  var login = function login(username, password, callback){
-    // Perform authentication here...
-  }
-  var logout = function logout(callback) { /*...*/ }
+module.exports.needs = [];
+module.exports.fn = function(imports) { // Access dependencies through imports
+  var login = function (username, password, callback){ /*...*/ }
+  var logout = function (callback) { /*...*/ }
 
-  return {
+  return { // This entire package is replaced with the following return value
     login: login,
     logout: logout
   }
 }
 ```
-This package returns an object that exposes two functions: `login` and `logout`. The returned object is then injected in  other packages that require it through the `needs` property.
+
+The latter package is replaced with an object containing two functions: `login` and `logout`. This object can then be injected in other packages that ask for it through `needs` property.
 
 ```js
 // server.js
 module.exports.needs = ['auth'];
-module.exports.fn = function($) {
-  $.auth.login('testing', '123', function(err, user){
+module.exports.fn = function(imports) {
+  imports.auth.login('testing', '123', function(err, user){
     // Handle whether user is authorized
   });
 }
 ```
+
 If the `fn` and `needs` properties are not provided, `nwire` will not perform any dependency injection.
 
 ## Nested packages
@@ -111,7 +100,7 @@ If the `fn` and `needs` properties are not provided, `nwire` will not perform an
 ```js
 // components/header.js
 module.exports.needs = ['Vue'];
-module.exports.fn = function($) { return $.Vue.component({}); }
+module.exports.fn = function(imports) { return imports.Vue.component({}); }
 ```
 ```js
 // config.js
@@ -131,12 +120,19 @@ module.exports.needs = [
   "components",
   "components.header"
 ]
-module.exports.fn = function($) {
-  console.log($.components) // => Object
-  console.log($.components.header) // => Object
-  console.log($["components.header"]) // => Undefined
+
+module.exports.fn = function(imports) {
+  console.log(imports.components) // => Object
+  console.log(imports.components.header) // => Object
+  console.log(imports["components.header"]) // => Undefined
 }
 ```
+
+## Caveats
+
+`nwire` does not handle circular dependency, so make sure not to create a circular reference between your packages.
+
+All packages are singleton. If you need to create objects that have dependencies, return a function. Modifying an injected package will affect all dependent children. For this reason, try not to store state in your packages.
 
 ## Running the test suite
 
@@ -145,6 +141,6 @@ $ npm install
 $ npm test
 ```
 
-## Suggestions and questions
+## License
 
-If you have any suggestions or questions regarding this project, please open an issue. If you feel that you have a feature that would be useful to add, fork it and open a pull request.
+MIT

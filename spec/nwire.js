@@ -50,6 +50,25 @@ describe('nwire', function() {
     });
   });
 
+  it('should resolve parent dependencies', function(done) {
+    wire({
+      'prov': { value: 123 },
+      'nested': {
+        'nested': {
+          'nested': {
+            'cons': {
+              needs: ['prov'],
+              fn: function($) { return { consumedValue: $.prov.value }; }
+            }
+          }
+        }
+      }
+    }, function(err, app) {
+      expect(app.nested.nested.nested.cons.consumedValue).to.equal(123);
+      done();
+    })
+  });
+
   it('should not crash on circular dependency', function(done) {
     wire({
       'provc': {

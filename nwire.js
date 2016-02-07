@@ -9,6 +9,12 @@ module.exports = function(config, callback) {
     this.parent = parent;
   }
 
+  Declaration.prototype.traverseParentFor = function(name) {
+    if (this.parent) 
+      return this.parent.root[name] || this.parent.traverseParentFor(name);
+    return undefined;
+  }
+
   Declaration.prototype.resolve = function(name) {
     var self = this;
     var decl = self.root[name];
@@ -18,7 +24,7 @@ module.exports = function(config, callback) {
 
     if (!decl.fn || !decl.needs || typeof decl.fn !== "function"
         || !(decl.needs instanceof Array))
-    {
+    {   
       if (typeof decl === 'object' && !(decl instanceof Array))
         for (var member in decl) {
           var declaration = new Declaration(decl, self);
@@ -34,7 +40,9 @@ module.exports = function(config, callback) {
       Object.defineProperty(needs, need, {
         get: function() {
           var parent = self.parent || { root: {} };
-          return self.root[need] || parent.root[need];
+          var obj = self.root[need];
+
+          return self.root[need] || self.traverseParentFor(need);
         }
       });
     });

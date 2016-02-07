@@ -15,7 +15,7 @@ module.exports = function nwire(config, callback) {
       var needs = {};
 
       object.needs.forEach(function(need) {
-        needs[need] = Package.prototype.resolve.call(parent, need);
+        needs[need] = self.resolve(need);
       });
 
       this.object = object.fn(needs);

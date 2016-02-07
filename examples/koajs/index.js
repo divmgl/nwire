@@ -1,6 +1,3 @@
-var wire = require('../../');
+var app = require('../../')(require('./config'));
+app.server.bootstrap(3000);
 
-wire(require('./config'), function(err, app) { // Composite root
-  if (err) throw err;
-  app.server.bootstrap(3000);
-});

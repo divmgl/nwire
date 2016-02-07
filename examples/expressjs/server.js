@@ -1,4 +1,3 @@
-module.exports.needs = ['express-app', 'winston'];
 module.exports.fn = function($) {
   var app = $["express-app"]();
 
@@ -12,3 +11,4 @@ module.exports.fn = function($) {
     bootstrap: bootstrap
   };
 }
+module.exports.needs = ['express-app', 'winston'];

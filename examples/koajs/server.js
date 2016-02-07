@@ -1,4 +1,3 @@
-module.exports.needs = ['koa', 'winston', 'http'];
 module.exports.fn = function($) {
   var app = $.koa();
   var server = $.http.Server(app.callback())
@@ -13,3 +12,4 @@ module.exports.fn = function($) {
     bootstrap: bootstrap
   };
 }
+module.exports.needs = ['koa', 'winston', 'http'];

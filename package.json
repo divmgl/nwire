@@ -1,11 +1,11 @@
 {
   "name": "nwire",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Simplified dependency injection in Node.js",
   "main": "nwire.js",
   "scripts": {
-    "test": "mocha spec",
-    "watch-test": "mocha spec -w"
+    "test": "mocha tests",
+    "start": "mocha tests -w -R min"
   },
   "repository": {
     "type": "git",

@@ -113,20 +113,6 @@ describe('nwire', function() {
     })
   });
 
-  it('returns a new instance every time', function(done) {
-    wire({
-      'prov': {
-        needs: [],
-        fn: function($) { this.value = 123; },
-        construct: true
-      }
-    }, function (err, app) {
-      app.prov.value = 456;
-      expect(app.prov.value).to.equal(123);
-      done();
-    })
-  });
-
   it('handles errors gracefully', function(done) {
     wire({
       'prov': {

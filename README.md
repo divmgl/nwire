@@ -110,12 +110,12 @@ If the `fn` and `needs` properties are not provided, `nwire` will not perform an
 
 `nwire` will recursively look for packages that implement `fn` and `needs` which will allow you to perform dependency injection on nested objects. It will also inject packages from the parent scope.
 
-```
+```js
 // components/header.js
 module.exports.needs = ['Vue'];
 module.exports.fn = function($) { return $.Vue.component({}); }
 ```
-```
+```js
 // config.js
 module.exports = {
   Vue: require('vue'),

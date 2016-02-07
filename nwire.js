@@ -1,6 +1,4 @@
 module.exports = function nwire(config, callback) {
-  var container = {};
-
   var Package = function(object, parent) {
     var self = this;
 
@@ -33,7 +31,7 @@ module.exports = function nwire(config, callback) {
   }
 
   try {
-    container = new Package(config).object;
+    var container = new Package(config).object;
     callback(null, container);
   } catch (err) {
     callback(err, null);

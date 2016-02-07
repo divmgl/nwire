@@ -1,39 +1,40 @@
-module.exports = function nwire(config, callback) {
+module.exports = function nwire(config) {
   var Package = function(object, parent) {
     var self = this;
 
-    this.object = object;
-    this.parent = parent;
+    self.object = object;
+    self.parent = parent;
 
-    if (typeof object !== "object") return;
-    if (object instanceof Array) return;
-    if (object.ignore) return;
-
-    if (object.fn && object.needs) {
-      var needs = {};
-
-      object.needs.forEach(function(need) {
-        needs[need] = self.resolve(need);
-      });
-
-      this.object = object.fn(needs);
-      return;
-    }
-
+    if (typeof object !== "object" || object instanceof Array) return;
+    
     for (var member in object) {
-      object[member] = new Package(object[member], self).object;
+      var package = object[member];
+
+      if (package.fn && package.needs && !package.ignore) {
+        var needs = {};
+
+        package.needs.forEach(function(need) {
+          Object.defineProperty(needs, need, {
+            get: self.resolve.bind(self, need)
+          });
+        });
+
+        Object.defineProperty(self.object, member, {
+          get: package.fn.bind(self, needs)
+        });
+
+        continue;
+      }
+
+      self.object[member] = new Package(package, self).object;
     }
   }
 
   Package.prototype.resolve = function(name) {
-    if (!this.object) return undefined;
-    return this.object[name] || Package.prototype.resolve.call(this.parent, name);
+    return this.object ?
+      this.object[name] || Package.prototype.resolve.call(this.parent, name) :
+      undefined;
   }
 
-  try {
-    var container = new Package(config).object;
-    callback(null, container);
-  } catch (err) {
-    callback(err, null);
-  }
+  return new Package(config).object;
 }

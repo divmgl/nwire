@@ -17,16 +17,14 @@ Bootstrapping a simple server using Express.js:
 var wire = require('nwire');
 var config = require('./config');
 
-wire(config, function(err, app){    // Composite root
-  if (err) throw err;               // Handle errors
-  app.server.listen(3000);          // Start your server
-});
+var app = wire(config);  // Composite root
+app.server.listen(3000); // Start your server
 ```
 ```js
 // server.js
-module.exports.needs = ['express']; // What your package needs
-module.exports.fn = function($){    // Dependencies are injected through $
-  var app = $.express();
+module.exports.needs = ['express'];     
+module.exports.fn = function(imports) {
+  var app = imports.express();
 
   // Add your routes and configuration here
 
@@ -36,7 +34,7 @@ module.exports.fn = function($){    // Dependencies are injected through $
 ```js
 // config.js
 module.exports = {
-  'server': require('./server'),    // Provide packages
+  'server': require('./server'),
   'express': require('express')
 }
 ```
@@ -61,7 +59,7 @@ module.exports = {
 };
 ```
 
-Here we can see that the packages `app`, `redis-db`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that need them. `nwire` will then inject all other four packages through the `imports` parameter for packages that contain the properties `fn` and `needs`.
+Here we can see that the packages `app`, `redis-db`, `express`, `morgan`, and `passport` are registered and are ready to be injected in packages that need them. `nwire` will then inject all other four packages through the `imports` parameter for objects that contain the properties `fn` and `needs`.
 
 ```js
 // server.js

@@ -7,7 +7,6 @@ type TestContext = {
 
 class TestDependency {
   test() {
-    console.log("testing!")
     return 1
   }
 }
@@ -16,7 +15,6 @@ class DependentDependency {
   constructor(private context: { dependency: TestDependency }, private n: 3) {}
 
   test() {
-    console.log(this.context)
     return this.n ?? this.context.dependency.test()
   }
 }
@@ -28,12 +26,12 @@ describe("nwire", () => {
   })
 
   it("registers a dependency", () => {
-    const dependency = { test: () => console.log("testing!") }
+    const dependency = { test: () => console.info("testing!") }
     Container.register("dependency", dependency)
   })
 
   it("unregisters a dependency", () => {
-    const dependency = { test: () => console.log("testing!") }
+    const dependency = { test: () => console.info("testing!") }
 
     const container = Container.build()
       .register("dependency", dependency)
@@ -44,7 +42,7 @@ describe("nwire", () => {
   })
 
   it("resolves registered dependency", () => {
-    const dependency = { test: () => console.log("testing!") }
+    const dependency = { test: () => console.info("testing!") }
     const container = Container.register("dependency", dependency)
 
     const resolved = container.resolve("dependency")

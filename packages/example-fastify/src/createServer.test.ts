@@ -13,7 +13,6 @@ declare module "vitest" {
 
 describe("server", function () {
   beforeEach(async (context) => {
-    console.log(Container)
     const container = Container
       //
       .singleton("tasks", SQLiteTaskStore)

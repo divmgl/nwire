@@ -76,7 +76,7 @@ Container.register("prisma", () => new PrismaClient()) // => Container
 
 The second argument is a function that returns the dependency.
 
-You also have access to the fully resolved `Context` at reolution time, in case you wish to do something with it:
+You also have access to the fully resolved `Context` at resolution time, in case you wish to do something with it:
 
 ```tsx
 Container.register("users", (context) => new UsersService(context)) // => Container
@@ -94,7 +94,7 @@ const context = Container
 > This is because `TasksCreator` is asking for a fully typed context but the context up until this registration is completely empty. You can overcome this by adding a type to the `Container.prototype.context` call. You can read more about it in the [Context](#Container.context) section.
 
 
-However, we've included a method to avoid this boilerplate altogether:
+However, a method is included to avoid this boilerplate altogether:
 
 #### `Container.instance`
 
@@ -192,9 +192,11 @@ export class MyService {
 }
 ```
 
-But this is a bit hard to remember. For this reason we provide a base class named `Injected` which takes care of this for you (and allows you to omit the constructor altogether):
+But this is a bit hard to remember. For this reason `nwire` provides a base class named `Injected` which takes care of this for you (and allows you to omit the constructor altogether):
 
 ```tsx
+import { Injected } from "nwire"
+
 export class MyService extends Injected<MyTypedContext> {
   helloWorld() {
     return this.context.banner;

@@ -22,7 +22,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "concurrently \"pnpm run build:cjs\" \"pnpm run build:esm\" \"pnpm run build:types\"",
+    "build": "rimraf dist && concurrently \"pnpm run build:cjs\" \"pnpm run build:esm\" \"pnpm run build:types\"",
     "build:types": "tsc",
     "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.js",
     "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --format=esm",
@@ -30,10 +30,12 @@
     "testing": "vitest"
   },
   "devDependencies": {
-    "@types/node": "^20.8.9",
-    "concurrently": "^8.2.2",
-    "typescript": "^5.2.2",
-    "vitest": "^0.34.6"
+    "@types/node": "20.8.9",
+    "concurrently": "8.2.2",
+    "esbuild": "0.19.5",
+    "rimraf": "5.0.5",
+    "typescript": "5.2.2",
+    "vitest": "0.34.6"
   },
   "exports": {
     ".": {

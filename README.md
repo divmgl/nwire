@@ -5,14 +5,13 @@
 `nwire` is a package that provides simplified dependency injection in Node.js.
 
 ```tsx
-// entrypoint.ts
+// entrypoint.js
 import { Container } from "nwire"
 
 const context = Container
-  //
   .register("prisma", new PrismaClient())
   .register("redis", new Redis())
-  .group("services", (container: Container) =>
+  .group("services", (container) =>
     container
       .singleton("users", UsersService)
       .singleton("tasks", TasksService)
@@ -25,10 +24,8 @@ const myUser = await context.services.users.findOne("1234")
 
 ```tsx
 // UsersService.ts
-class UsersService {
-  constructor(context: typeof context) {}
-
-  findOne(id: string) {
+class UsersService extends Injected {
+  findOne(id) {
     return this.context.prisma.users.findUniqueOrThrow({ where: { id } })
   }
 }
@@ -36,7 +33,277 @@ class UsersService {
 
 ## API
 
-(Coming soon)
+`nwire` has two high-level concepts: the `Container` and the `Context`. The `Container` allows you to compose a strongly-typed `Context`, and the `Context` is the proxy that resolves dependencies for you lazily. The `Context` lives within the `Container` (as a closure) and interacts with the registration of your dependencies behind the scenes.
+
+When using the library you likely won't have to think about these semantics, but we figured it's important to understand how it works under the hood.
+
+### `Container`
+
+The `Container` class is the main entrypoint for `nwire`. It provides a fluent API for registering
+dependencies and creating `Context`s from them.
+
+#### Creating a `Container`
+
+You can use `new Container()` to create a container:
+
+```tsx
+const container = new Container()
+
+container.register("prisma", new PrismaClient())
+container.register("redis", new Redis())
+
+const context = container.context()
+```
+
+In a majority of cases you'll be creating a single container, registering a bunch of dependencies, and then grabbing the generated `Context`. For this reason we've included static methods that return a new container and are chainable, so you can write your code like this instead:
+
+```tsx
+const context = Container
+  .register("prisma", () => new PrismaClient())
+  .register("redis", () => new Redis())
+  .context()
+```
+
+The choice is yours: you can keep the `Container` around in case you want to register more dependencies later, or you can simply grab the `Context`.
+
+#### `Container.register`
+
+Registers a dependency with the container.
+
+```tsx
+Container.register("prisma", () => new PrismaClient()) // => Container
+```
+
+The second argument is a function that returns the dependency.
+
+You also have access to the fully resolved `Context` at reolution time, in case you wish to do something with it:
+
+```tsx
+Container.register("users", (context) => new UsersService(context)) // => Container
+```
+
+> ⚠️ The `Context` that's sent to the dependency will be fully setup, but this may not match what the compiler sees as TypeScript is only able to gather what's been currently registered. For instance, the following results in a compiler error:
+
+```tsx
+const context = Container
+  .register("tasksCreator", (context) => new TasksCreator(context))
+  // Argument of type '{}' is not assignable to parameter of type 'AppContext'.
+  // Type '{}' is missing the following properties from type 'AppContext': tasks, tasksCreator
+  .register("tasks", (context) => new SQLiteTaskStore(context))
+```
+> This is because `TasksCreator` is asking for a fully typed context but the context up until this registration is completely empty. You can overcome this by adding a type to the `Container.prototype.context` call. You can read more about it in the [Context](#Container.context) section.
+
+
+However, we've included a method to avoid this boilerplate altogether:
+
+#### `Container.instance`
+
+Your goal will often be to simply pass in the fully resolved `Context` to classes. For this reason, `nwire` provides a function that will create a new instance of your class with a fully resolved `Context` whenever the dependency is resolved:
+
+```tsx
+Container.instance("users", UsersService) // => Container
+```
+
+When the `users` dependency is used, `nwire` will create a new `UsersService` class with the resolved `Context` as the first parameter:
+
+```tsx
+const user = await context.users.findOne("123")
+
+// Equivalent without nwire, sans singleton setup:
+const users = new UsersService(container.context())
+const user = await users.findOne("123")
+```
+
+You can also pass in additional arguments to the constructor:
+
+```tsx
+Container.instance("users", UsersService, { cookieSecret: process.env.COOKIE_SECRET })
+```
+
+#### `Container.group`
+
+Sometimes you'll want to group things together within the `Container`. You could technically do this:
+
+```tsx
+const context = Container
+  //
+  .register("services", (context) => ({
+    users: new UsersService(context),
+    tasks: new TasksService(context),
+  }))
+  .context()
+```
+
+And now all services will be nested under `services`:
+
+```tsx
+context.services.users.findOne("123")
+```
+
+However, this has a big issue: once you access `service` for the first time you make an instance of every single class all at once.
+
+`nwire` provides a solution for this: `Container.group`. `Container.group` creates a nested `Container` that will only resolve when you access properties within it. The nested container will be passed as the first argument to the function you pass in:
+
+```tsx
+const context = Container
+  //
+  .group("services", (services: Container) =>
+    services
+      //
+      .singleton("users", UsersService)
+      .singleton("tasks", TasksService)
+  )
+  .context()
+
+type AppContext = typeof context
+```
+
+```tsx
+type AppContext = {
+  services: {
+    users: UsersService
+    tasks: TasksService
+  }
+}
+```
+
+```tsx
+// Two contexts are used for resolution here: `context` and `services`
+context.services.users.findOne("123")
+```
+
+### `Context`
+
+The `Context` class is the dependency proxy that the `Container` produces. This class allows you to access your dependencies using the names you registered them with:
+
+```tsx
+const context = Container
+  .register("users" /** Registry name */, () => new UsersService())
+  .context()
+
+const user = await context.users.findOne("123")
+```
+
+You want to pass your `Context` around to all of your dependencies to enable the lazy resolution of dependencies. You can do this manually like so:
+
+```ts
+export class MyService {
+  constructor(private context: MyTypedContext) {}
+}
+```
+
+But this is a bit hard to remember. For this reason we provide a base class named `Injected` which takes care of this for you (and allows you to omit the constructor altogether):
+
+```tsx
+export class MyService extends Injected<MyTypedContext> {
+  helloWorld() {
+    return this.context.banner;
+  }
+}
+```
+
+This class will fit into the `Container.prototype.instance` API:
+
+```tsx
+const context = Container
+  .register("banner", () => "Hello world!")
+  .instance("my", MyService) // No type errors
+  .context()
+
+context.my.helloWorld() // => console output: "Hello world!"
+```
+
+#### `Container.context`
+
+Creates a new `Context` class. This is the class you're meant to pass around to all of your dependencies. It's responsible for resolving dependencies:
+
+```tsx
+const context = Container
+  // ... lots of registrations here
+  .register("users", () => new UsersService())
+  .context()
+
+const user = await context.users.findOne("123")
+// `users` is resolved lazily.
+```
+
+`nwire` will only resolve dependencies when they're needed. This is an intentional design decision to avoid having to instantiate the entire `Container`, which is especially useful for tests. However, the type that `.context()` outputs will always be the _fully_ typed `Context`.
+
+#### `Container.context<T>`: ⚠️ Needed for TypeScript
+
+It's recommended you pass an explicit type to the `context` function.
+
+```tsx
+export type AppContext = {
+  users: UsersService
+  tasks: TasksService
+  tasksCreator: TasksCreator
+}
+
+const context = Container
+  .register("tasksCreator", (context) => new TasksCreator(context))
+  .register("tasks", (context) => new SQLiteTaskStore(context))
+  .context<AppContext>()
+```
+
+Doing so helps you avoid several issues:
+
+**Circular Dependencies**
+
+Because a fully typed `Context` is sent as an argument in a dependency's constructor, you'll run into issues if you attempt to do something like this:
+
+```tsx
+export type AppContext = Awaited<ReturnType<typeof context>>
+```
+
+This will cause the compiler to completely brick in any service that uses the `AppContext` type. This is because a circular reference is created when a class is registered on the same context that it reads from.
+
+**Incomplete `Context` types**
+
+You'll also run into issues if you attempt to pass a partial context during registration to constructor:
+
+```tsx
+export const context = Container
+  .register("users", (contextUpToThisPoint) => new UsersService(contextUpToThisPoint))
+  // Argument of type '{}' is not assignable to parameter of type 'AppContext'.
+  // Type '{}' is missing the following properties from type 'AppContext': users
+  .context()
+  
+```
+
+This is because the compiler doesn't know what the `contextUpToThisPoint` type is until it's been decorated using `register` and `instance`.
+
+### Lifetime of a dependency
+
+`nwire` will resolve dependencies for you lazily and keep an instance of the dependency as a singleton by default.
+
+```tsx
+container.register("randomizer", () => new RandomizerClass())
+container.resolve<RandomizerClass>("randomizer").id // => 353
+container.resolve<RandomizerClass>("randomizer").id // => 353
+```
+
+Unless unregistered, the dependency will be kept in memory for the lifetime of the `Container`.
+
+However, you can create transient dependencies by specifying the `{ transient: true }` option:
+
+```tsx
+container.register("randomizer", () => new RandomizerClass(), {
+  transient: true,
+})
+container.resolve<RandomizerClass>("randomizer").id // => 964
+container.resolve<RandomizerClass>("randomizer").id // => 248
+```
+
+`nwire` will invoke this function when the `randomizer` dependency is either resolved through the `Container` using `Container.resolve` or through the `Context` using `context.randomizer`.
+
+There is currently no API for transient `instance` registrations, so if you do want to create a unique instance on every call you'll need to provide an initial context:
+
+```tsx
+const context = Container.build<AppContext>
+  .register("users", (context) => new UsersService(context), { transient: true }))
+  .context()
+```
 
 ## What is dependency injection?
 

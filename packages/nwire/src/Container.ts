@@ -1,8 +1,8 @@
-type Context = {
+export type Context = {
   [key: string]: unknown
 }
 
-export type Singleton<TValue> = {
+export type Instance<TValue> = {
   new (context: any, ...args: any[]): TValue
 }
 
@@ -14,31 +14,52 @@ type MergeContext<TExisting, TKey extends string, TValue> = Flatten<
   }
 >
 
+type RegistrationOptions = {
+  transient?: boolean
+}
+
 export class Container<TContext extends Context = {}> {
-  private _map: Map<string, unknown>
+  private _registry: Map<string, unknown>
+  private _map: Map<string, (context: TContext) => unknown>
+  private _transient: Set<string>
 
   constructor() {
-    this._map = new Map<string, unknown>()
+    this._transient = new Set<string>()
+    this._registry = new Map<string, unknown>()
+    this._map = new Map<string, (context: TContext) => unknown>()
   }
 
-  static build<TContext extends Context = {}>() {
-    return new Container<TContext>()
+  static build(): Container {
+    return new Container()
   }
 
-  context(rootContext = {}): TContext {
+  context<TWriteContext extends Context = TContext>(
+    rootContext: Context = {}
+  ): TWriteContext {
     const handler = {
-      get: (target: Context, prop: string) => {
-        if (this._map.has(prop)) return this._map.get(prop)
-        return target[prop]
+      get: (target: Context, key: string) => {
+        if (rootContext.hasOwnProperty(key)) {
+          return rootContext[key]
+        } else if (this._registry.has(key)) {
+          return this._registry.get(key)
+        } else if (this._map.has(key)) {
+          const value = this._map.get(key)!
+          const instance = value(this.context())
+
+          if (!this._transient.has(key)) this._registry.set(key, instance)
+
+          return instance
+        }
+        return target[key]
       },
     }
 
     const proxy = new Proxy<TContext>(
-      { ...rootContext, ...Object.fromEntries(this._map) } as TContext,
+      { ...Object.fromEntries(this._map) } as TContext,
       handler
     )
 
-    return proxy as TContext
+    return proxy as unknown as TWriteContext
   }
 
   // Add a subcontext to a property of this context
@@ -46,7 +67,7 @@ export class Container<TContext extends Context = {}> {
     key: TNewKey,
     decorator: (container: Container<TContext>) => Container<TNewContext>
   ): Container<MergeContext<Context, TNewKey, TNewContext>> {
-    this._map.set(key, this.context(decorator(this).context()))
+    this._map.set(key, () => this.context(decorator(this).context()))
     return this as any
   }
 
@@ -57,42 +78,52 @@ export class Container<TContext extends Context = {}> {
     return Container.build().group(key, decorator) as any
   }
 
-  singleton<TNewKey extends string, TValue>(
+  instance<TNewKey extends string, TValue>(
     key: TNewKey,
-    ValueClass: Singleton<TValue>,
+    ValueClass: Instance<TValue>,
     ...args: any[]
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
-    this._map.set(key, new ValueClass(this.context(), ...args))
+    this._map.set(key, () => new ValueClass(this.context(), ...args))
     return this as any
   }
 
-  static singleton<TNewKey extends string, TValue>(
+  static instance<TNewKey extends string, TValue>(
     key: TNewKey,
-    ValueClass: Singleton<TValue>,
+    ValueClass: Instance<TValue>,
     ...args: any[]
   ): Container<MergeContext<Context, TNewKey, TValue>> {
-    return Container.build().singleton(key, ValueClass, ...args) as any
+    return Container.build().instance(key, ValueClass, ...args) as any
   }
 
   register<TNewKey extends string, TValue>(
     key: TNewKey,
-    value: TValue
+    value: (context: TContext) => TValue,
+    { transient }: RegistrationOptions = { transient: false }
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
-    this._map.set(key, value)
+    this._map.set(key, () =>
+      value(this.context() as MergeContext<TContext, TNewKey, TValue>)
+    )
+
+    if (transient) this._transient.add(key)
+
     return this as any
   }
 
   static register<TNewKey extends string, TValue>(
     key: TNewKey,
-    value: TValue
+    value: (context: Context) => TValue,
+    options?: RegistrationOptions
   ): Container<MergeContext<Context, TNewKey, TValue>> {
-    return Container.build().register(key, value) as any
+    return Container.build().register(key, value, options) as any
   }
 
   unregister<TNewKey extends string>(
     key: TNewKey
   ): Container<Omit<TContext, TNewKey>> {
     this._map.delete(key)
+    this._registry.delete(key)
+    this._transient.delete(key)
+
     return this as any
   }
 
@@ -103,6 +134,6 @@ export class Container<TContext extends Context = {}> {
   }
 
   resolve<T>(key: keyof TContext): T {
-    return this._map.get(key as string) as unknown as T
+    return this._map.get(key as string)?.(this.context()) as unknown as T
   }
 }

@@ -1,30 +1,7 @@
 {
-  "name": "nwire",
-  "version": "0.4.0",
-  "description": "Simplified dependency injection in Node.js",
-  "main": "nwire.js",
+  "name": "nwire-monorepo",
+  "private": true,
   "scripts": {
-    "test": "mocha tests",
-    "start": "mocha tests -w -R min"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/divmgl/nwire.git"
-  },
-  "keywords": [
-    "ioc",
-    "injection",
-    "dependency",
-    "inject"
-  ],
-  "author": "Dexter Miguel",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/divmgl/nwire/issues"
-  },
-  "homepage": "https://github.com/divmgl/nwire#readme",
-  "devDependencies": {
-    "chai": "^3.2.0",
-    "mocha": "^2.2.5"
+    "test": "FORCE_COLOR=1 pnpm run -r test"
   }
 }

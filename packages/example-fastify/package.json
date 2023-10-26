@@ -1,0 +1,23 @@
+{
+  "name": "nwire-example",
+  "dependencies": {
+    "fastify": "^4.24.3",
+    "nwire": "1.0.0",
+    "sqlite": "^5.0.1",
+    "sqlite3": "^5.1.6",
+    "tsx": "^3.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.9",
+    "@types/sqlite3": "^3.1.10",
+    "@types/supertest": "^2.0.15",
+    "supertest": "^6.3.3",
+    "vitest": "^0.34.6"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "testing": "vitest"
+  }
+}

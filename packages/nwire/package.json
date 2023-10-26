@@ -1,0 +1,44 @@
+{
+  "name": "nwire",
+  "description": "Simplified dependency injection for Node.js",
+  "version": "1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/divmgl/nwire",
+    "directory": "packages/nwire"
+  },
+  "bugs": {
+    "url": "https://github.com/divmgl/nwire/issues"
+  },
+  "main": "dist/index.js",
+  "typings": "dist/index.d.ts",
+  "module": "dist/index.esm.js",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "dist/"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "concurrently \"pnpm run build:cjs\" \"pnpm run build:esm\" \"pnpm run build:types\"",
+    "build:types": "tsc",
+    "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.js",
+    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --format=esm",
+    "test": "vitest run",
+    "testing": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.9",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.2.2",
+    "vitest": "^0.34.6"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js"
+    }
+  }
+}

@@ -1,145 +1,144 @@
-# nwire.js
+# nwire
 
-[![Build Status](https://travis-ci.org/divmgl/nwire.svg?branch=master)](https://travis-ci.org/divmgl/nwire)
-[![Join the chat at https://gitter.im/divmgl/nwire](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/divmgl/nwire?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+`nwire` is a package that provides simplified dependency injection in Node.js.
 
-Simplified dependency injection in Node.js
+```tsx
+import { Container } from "nwire"
 
-## Installation
-`$ npm install nwire`
+/**
+ * Creates a typed context with your registrations:
+ *
+ * type Context = typeof context = {
+ *   services: {
+ *     users: UserService
+ *     tasks: TasksService
+ *     billing: BillingService
+ *   },
+ *   prisma: PrismaClient
+ *   redis: Redis
+ * }
+ */
+const context = Container
+  // Registrations
+  .group("services", (container: Container) =>
+    container
+      .singleton("users", UsersService)
+      .singleton("tasks", TasksService)
+      .singleton("billing", BillingService)
+  )
+  .register("prisma", new PrismaClient())
+  .register("redis", new Redis())
+  .context()
 
-## Example
+type Context = typeof context
 
-Bootstrapping a simple server using Express:
+class UsersService {
+  constructor(context: typeof context) {}
 
-```js
-// index.js
-var wire = require('nwire');
-var config = require('./config');
+  findOne(id: string) {
+    return context.prisma.users.findUniqueOrThrow({ where: { id } })
+  }
+}
 
-var app = wire(config);
-app.server.listen(3000);
+const myUser = await context.services.users.findOne("1234")
 ```
-```js
-// server.js
-module.exports.needs = ['express'];     
-module.exports.fn = function(imports) { 
-  var app = imports.express(); // Injected by nwire 
- 
-  // ... routes and configuration go here ...
 
-  return app;
+## What is dependency injection?
+
+Dependency injection is the process of keeping your components loosely coupled. This pattern makes
+it easy to swap out the underlying implementations of dependencies as long as the contracts stay
+the same.
+
+### An example
+
+Consider a `UsersService`:
+
+```tsx
+class UsersService {
+  constructor(private psql: Postgres) {}
+
+  async find(id: string) {
+    return await this.psql.query("SELECT * FROM id WHERE id = ?", [id])
+  }
+
+  // ... other functions that use this.psql //
 }
 ```
-```js
-// config.js
-module.exports = {
-  'server': require('./server'),
-  'express': require('express')
-}
-```
 
-## Why?
+In this contrived example, the users service is tightly coupled to the Postgres client library. This
+means that if in the future you wanted to change the underlying access implementation, you'd have to
+introduce another dependency in the constructor, thus now coupling both libraries tightly to the
+service:
 
-Dependency injection shouldn't be complicated. `nwire` encourages loosely coupled functionality and simplifies the process of isolating your code for testing.
+```tsx
+class UsersService {
+  constructor(private psql: Postgres, private prisma: Prisma) {}
 
-## Creating the container
-
-You must call `nwire` with an object containing the packages you wish to register. `nwire` will return a container.
-
-```js
-// config.js
-module.exports = {
-  'app': require('./server'),
-  'express': require('express'),
-  'morgan': require('morgan'),
-  'passport': require('passport')
-};
-```
-```js
-// index.js
-var app = nwire(require('./config')); // => Object
-```
-
-## Performing dependency injection
-
-The container is just a standard object unless `nwire` detects packages that contain two properties: `fn` and `needs`. `nwire` will replace these packages with the return value of the `fn` function called with an array of resolved dependencies.
-
-```js
-// auth.js
-module.exports.needs = [];
-module.exports.fn = function(imports) { // Access dependencies through imports
-  var login = function (username, password, callback){ /*...*/ }
-  var logout = function (callback) { /*...*/ }
-
-  return { // This entire package is replaced with the following return value
-    login: login,
-    logout: logout
+  async find(id: string) {
+    return await this.prisma.users({ where: { id } })
   }
 }
 ```
 
-The latter package is replaced with an object containing two functions: `login` and `logout`. This object can then be injected in other packages that ask for it through `needs` property.
+You can overcome this by using a repository:
 
-```js
-// server.js
-module.exports.needs = ['auth'];
-module.exports.fn = function(imports) {
-  imports.auth.login('testing', '123', function(err, user){
-    // Handle whether user is authorized
-  });
-}
-```
+```tsx
+class UsersService {
+  constructor(private users: UserRepository /* Interface or type */) {}
 
-If the `fn` and `needs` properties are not provided, `nwire` will not perform any dependency injection.
-
-## Nested packages
-
-`nwire` will recursively look for packages that implement `fn` and `needs`. It will also inject packages from the parent scope.
-
-```js
-// components/header.js
-module.exports.needs = ['Vue'];
-module.exports.fn = function(imports) { return imports.Vue.component({}); }
-```
-```js
-// config.js
-module.exports = {
-  Vue: require('vue'),
-  components: { // Vue is injected even though the object is nested
-    header: require('./components/header')
+  async find(id: string) {
+    return await this.users.findOne(id)
   }
 }
 ```
 
-However you cannot inject nested objects, only their parents.
+By passing in a repository to the constructor that encapsulates the data access concerns we can
+change the underlying implementation without affecting dependent services.
 
-```js
-// application.js
-module.exports.needs = [
-  "components",
-  "components.header"
-]
+However, we still have an issue: we have to manually pass in `UserRepository` every single time:
 
-module.exports.fn = function(imports) {
-  console.log(imports.components) // => Object
-  console.log(imports.components.header) // => Object
-  console.log(imports["components.header"]) // => Undefined
+```tsx
+const userRepository = new UserRepository()
+const usersService = new UsersService(userRepository)
+```
+
+Additionally, if you pass in a variety of different dependencies often to services, you'll end up
+with a god object of all of your dependencies:
+
+```tsx
+const dependencies = {
+  usersService: new UsersService(userRepository),
+  ticketingService: new TicketingService(),
 }
+
+const server = new Server(dependencies) // Massive object that's already been resolved
 ```
 
-## Caveats
+This is where **dependency injection** comes in. Dependency injection is the process of resolving a
+necessary dependency when needed. It works by registering all of your dependencies within a container
+and when a dependency is needed the framework will resolve it for you.
 
-`nwire` does not handle circular dependency, so make sure not to create a circular reference between your packages.
+### With `nwire`
 
-All packages are singleton. If you need to create objects that have dependencies, return a function. Modifying an injected package will affect all dependent children. For this reason, try not to store state in your packages.
+Consider the previous example in `nwire`:
 
-## Running the test suite
+```tsx
+const context = Container.singleton("users", UsersService)
+  .register("prisma", new PrismaClient())
+  .register("psql", new Postgres())
 
+const user = await context.users.find("123")
 ```
-$ npm install
-$ npm test
-```
+
+`nwire` keeps a list of your registrations and makes them available to your services as needed. When
+the `UsersService` calls `users.findOne`, `nwire` will **lazily** return an instance of
+`UserRepository`.
+
+> ⚠️ `nwire` contexts are not normal objects. `nwire` use a proxy under the hood to evaluate your dependencies as needed. This is an intentional design decision to avoid having to instantiate the entire `Container` for tests.
+
+## API
+
+(Coming soon)
 
 ## License
 

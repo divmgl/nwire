@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "types": ["node"],
+    "outDir": "./dist",
+    "strict": true
+  },
+  // Include src without tests
+  "include": ["./src"],
+  "exclude": ["./src/**/*.test.ts"]
+}

@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "koa": "^0.20.0",
-    "winston": "^1.0.1"
-  }
-}

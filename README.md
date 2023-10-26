@@ -3,45 +3,38 @@
 `nwire` is a package that provides simplified dependency injection in Node.js.
 
 ```tsx
+// entrypoint.ts
 import { Container } from "nwire"
 
-/**
- * Creates a typed context with your registrations:
- *
- * type Context = typeof context = {
- *   services: {
- *     users: UserService
- *     tasks: TasksService
- *     billing: BillingService
- *   },
- *   prisma: PrismaClient
- *   redis: Redis
- * }
- */
 const context = Container
-  // Registrations
+  //
+  .register("prisma", new PrismaClient())
+  .register("redis", new Redis())
   .group("services", (container: Container) =>
     container
       .singleton("users", UsersService)
       .singleton("tasks", TasksService)
       .singleton("billing", BillingService)
   )
-  .register("prisma", new PrismaClient())
-  .register("redis", new Redis())
   .context()
 
-type Context = typeof context
+const myUser = await context.services.users.findOne("1234")
+```
 
+```tsx
+// UsersService.ts
 class UsersService {
   constructor(context: typeof context) {}
 
   findOne(id: string) {
-    return context.prisma.users.findUniqueOrThrow({ where: { id } })
+    return this.context.prisma.users.findUniqueOrThrow({ where: { id } })
   }
 }
-
-const myUser = await context.services.users.findOne("1234")
 ```
+
+## API
+
+(Coming soon)
 
 ## What is dependency injection?
 
@@ -135,10 +128,6 @@ the `UsersService` calls `users.findOne`, `nwire` will **lazily** return an inst
 `UserRepository`.
 
 > ⚠️ `nwire` contexts are not normal objects. `nwire` use a proxy under the hood to evaluate your dependencies as needed. This is an intentional design decision to avoid having to instantiate the entire `Container` for tests.
-
-## API
-
-(Coming soon)
 
 ## License
 

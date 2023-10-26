@@ -5,30 +5,24 @@
 `nwire` is a package that provides simplified dependency injection in Node.js.
 
 ```tsx
-// entrypoint.js
-import { Container } from "nwire"
+import { Container, Injected } from "nwire"
 
-const context = Container
-  .register("prisma", new PrismaClient())
-  .register("redis", new Redis())
-  .group("services", (container) =>
-    container
-      .singleton("users", UsersService)
-      .singleton("tasks", TasksService)
-      .singleton("billing", BillingService)
-  )
-  .context()
+type MyTypedContext = {
+  banner: string
+  my: MyService
+}
 
-const myUser = await context.services.users.findOne("1234")
-```
-
-```tsx
-// UsersService.ts
-class UsersService extends Injected {
-  findOne(id) {
-    return this.context.prisma.users.findUniqueOrThrow({ where: { id } })
+export class MyService extends Injected<MyTypedContext> {
+  helloWorld() {
+    return this.context.banner
   }
 }
+
+const context = Container.register("banner", () => "Hello world!")
+  .instance("my", MyService)
+  .context()
+
+console.log(context.my.helloWorld()) // => console output: "Hello world!"
 ```
 
 ## API

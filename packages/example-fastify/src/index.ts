@@ -1,19 +1,25 @@
-import { Container } from "nwire"
 import { createServer } from "./createServer"
-import { SQLiteTaskStore } from "./SQLiteTaskStore"
-import { TasksCreator } from "./TasksCreator"
+import { createContext } from "./AppContext"
 
-const context = Container.build()
-  .singleton("tasks", SQLiteTaskStore)
-  .singleton("tasksCreator", TasksCreator)
-  .context()
+start()
 
-const server = createServer(context)
+// Can use top-level `await` in ESM.
+async function start() {
+  try {
+    const server = createServer(await createContext())
 
-server.listen({ port: 3000 }, (err, address) => {
-  if (err) {
+    server.listen({ port: 3000 }, (err, address) => {
+      if (err) {
+        console.error(err)
+        process.exit(1)
+      }
+
+      console.info(`Server listening at ${address}`)
+    })
+
+    return server
+  } catch (err) {
     console.error(err)
     process.exit(1)
   }
-  console.info(`Server listening at ${address}`)
-})
+}

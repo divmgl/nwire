@@ -1,10 +1,16 @@
 import { describe, expect, it, test } from "vitest"
 import { Container } from "./Container"
 
-type TestContext = {
-  container: Container
-}
+class RandomizerDependency {
+  constructor() {
+    this._id = Math.floor(Math.random() * 1000)
+  }
 
+  private _id: number
+  get id() {
+    return this._id
+  }
+}
 class TestDependency {
   test() {
     return 1
@@ -27,14 +33,14 @@ describe("nwire", () => {
 
   it("registers a dependency", () => {
     const dependency = { test: () => console.info("testing!") }
-    Container.register("dependency", dependency)
+    Container.register("dependency", () => dependency)
   })
 
   it("unregisters a dependency", () => {
     const dependency = { test: () => console.info("testing!") }
 
     const container = Container.build()
-      .register("dependency", dependency)
+      .register("dependency", () => dependency)
       .unregister("dependency")
 
     const resolved = container.resolve("dependency" as never)
@@ -43,21 +49,24 @@ describe("nwire", () => {
 
   it("resolves registered dependency", () => {
     const dependency = { test: () => console.info("testing!") }
-    const container = Container.register("dependency", dependency)
+    const container = Container.register("dependency", () => dependency)
 
     const resolved = container.resolve("dependency")
     expect(resolved).toBe(dependency)
   })
 
   it("resolves classes", () => {
-    const container = Container.register("dependency", TestDependency)
+    const container = Container.register("dependency", () => TestDependency)
 
     const resolved = container.resolve<TestDependency>("dependency")
     expect(resolved).toEqual(TestDependency)
   })
 
   it("creates a context", () => {
-    const context = Container.register("dependency", TestDependency).context()
+    const context = Container.register(
+      "dependency",
+      () => TestDependency
+    ).context()
 
     const DependencyClass = context.dependency
     const dependency = new DependencyClass()
@@ -68,14 +77,14 @@ describe("nwire", () => {
   })
 
   it("understands singletons", () => {
-    const context = Container.singleton("dependency", TestDependency).context()
+    const context = Container.instance("dependency", TestDependency).context()
 
     expect(context.dependency.test).toBeTruthy()
   })
 
   it("creates singletons lazily", () => {
-    const context = Container.singleton("dependent", DependentDependency)
-      .singleton("dependency", TestDependency)
+    const context = Container.instance("dependent", DependentDependency)
+      .instance("dependency", TestDependency)
       .context()
 
     expect(context.dependent.test()).toEqual(1)
@@ -83,16 +92,16 @@ describe("nwire", () => {
 
   it("allows groupings of containers", () => {
     const context = Container.group("dependencies", (container) =>
-      container.singleton("dependency", TestDependency)
+      container.instance("dependency", TestDependency)
     ).context()
 
     expect(context.dependencies.dependency.test).toBeTruthy()
   })
 
   it("groupings have access to lazy dependencies in parent", () => {
-    const context = Container.singleton("dependency", TestDependency)
+    const context = Container.instance("dependency", TestDependency)
       .group("dependencies", (container) =>
-        container.singleton("dependent", DependentDependency)
+        container.instance("dependent", DependentDependency)
       )
       .context()
 
@@ -100,12 +109,31 @@ describe("nwire", () => {
   })
 
   it("can pass in additional parameters to the constructor of a singleton", () => {
-    const context = Container.singleton("dependency", TestDependency)
+    const context = Container.instance("dependency", TestDependency)
       .group("dependencies", (container) =>
-        container.singleton("dependent", DependentDependency, 3)
+        container.instance("dependent", DependentDependency, 3)
       )
       .context()
 
     expect(context.dependencies.dependent.test()).toEqual(3)
+  })
+
+  it("returns a singleton", () => {
+    const context = Container.instance(
+      "randomizer",
+      RandomizerDependency
+    ).context()
+
+    expect(context.randomizer.id).toEqual(context.randomizer.id)
+  })
+
+  it("does not return a singleton when transient", () => {
+    const context = Container.register(
+      "randomizer",
+      () => new RandomizerDependency(),
+      { transient: true }
+    ).context()
+
+    expect(context.randomizer.id).not.toEqual(context.randomizer.id)
   })
 })

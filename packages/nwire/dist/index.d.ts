@@ -1,1 +1,2 @@
-export { Container, Singleton } from "./Container";
+export { Container, Instance } from "./Container";
+export { Injected } from "./Injected";

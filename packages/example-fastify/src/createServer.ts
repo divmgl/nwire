@@ -1,12 +1,6 @@
 import Fastify from "fastify"
-import { TaskStore } from "./TaskStore"
 import { Task } from "./Task"
-import { TasksCreator } from "./TasksCreator"
-
-export type AppContext = {
-  tasks: TaskStore
-  tasksCreator: TasksCreator
-}
+import { AppContext } from "./AppContext"
 
 export function createServer(context: AppContext) {
   const server = Fastify()

@@ -1,0 +1,10 @@
+{
+  "name": "nwire-example-hello-world",
+  "dependencies": {
+    "nwire": "1.0.0"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts"
+  }
+}

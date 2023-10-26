@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "types": ["node"],
+    "strict": true,
+    "paths": {
+      "nwire": ["./node_modules/nwire/src"]
+    }
+  }
+}

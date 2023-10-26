@@ -1,7 +1,7 @@
 {
   "name": "nwire",
   "description": "Simplified dependency injection for Node.js",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "repository": {
     "type": "git",
     "url": "https://github.com/divmgl/nwire",

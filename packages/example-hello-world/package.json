@@ -1,7 +1,11 @@
 {
   "name": "nwire-example-hello-world",
   "dependencies": {
-    "nwire": "1.0.0"
+    "nwire": "workspace:^",
+    "tsx": "3.14.0"
+  },
+  "devDependencies": {
+    "@types/node": "20.8.9"
   },
   "scripts": {
     "start": "tsx src/index.ts",

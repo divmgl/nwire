@@ -14,7 +14,7 @@ importers:
         specifier: 4.24.3
         version: 4.24.3
       nwire:
-        specifier: 1.0.0
+        specifier: workspace:^
         version: link:../nwire
       sqlite:
         specifier: 5.0.1
@@ -45,8 +45,15 @@ importers:
   packages/example-hello-world:
     dependencies:
       nwire:
-        specifier: 1.0.0
+        specifier: workspace:^
         version: link:../nwire
+      tsx:
+        specifier: 3.14.0
+        version: 3.14.0
+    devDependencies:
+      '@types/node':
+        specifier: 20.8.9
+        version: 20.8.9
 
   packages/nwire:
     devDependencies:

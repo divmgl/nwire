@@ -2,7 +2,7 @@
   "name": "nwire-example-fastify",
   "dependencies": {
     "fastify": "4.24.3",
-    "nwire": "1.0.0",
+    "nwire": "workspace:^",
     "sqlite": "5.0.1",
     "sqlite3": "5.1.6",
     "tsx": "3.14.0"

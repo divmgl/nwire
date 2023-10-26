@@ -1,6 +1,6 @@
 # nwire
 
-![Tests](https://github.com/divmgl/nwire/actions/workflows/test.yml/badge.svg)
+![Tests](https://github.com/divmgl/nwire/actions/workflows/tests.yml/badge.svg)
 
 `nwire` is a package that provides simplified dependency injection in Node.js.
 

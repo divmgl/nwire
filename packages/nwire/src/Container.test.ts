@@ -11,23 +11,48 @@ class RandomizerDependency {
     return this._id
   }
 }
-class TestDependency {
+
+type TestContext = {
+  wheels: Wheels
+  dependencies: {
+    machines: {
+      car: Car
+    }
+  }
+  tire: Transmission
+}
+
+class Wheels {
+  constructor(_context: TestContext, private n: number) {}
+
   test() {
-    return 1
+    return this.n
   }
 }
 
-class DependentDependency {
-  constructor(private context: { dependency: TestDependency }, private n: 3) {}
+class Car {
+  constructor(private context: TestContext, private _name: string) {}
+
+  name() {
+    return this._name
+  }
 
   test() {
-    return this.n ?? this.context.dependency.test()
+    return this.context.wheels.test()
+  }
+}
+
+class Transmission {
+  constructor(private context: TestContext) {}
+
+  belongsTo() {
+    return this.context.dependencies.machines.car.name()
   }
 }
 
 describe("nwire", () => {
   it("creates a container", () => {
-    const container = Container.build()
+    const container = Container.build<TestContext>()
     expect(container).toBeTruthy()
   })
 
@@ -47,93 +72,117 @@ describe("nwire", () => {
     expect(resolved).toBeUndefined()
   })
 
-  it("resolves registered dependency", () => {
-    const dependency = { test: () => console.info("testing!") }
-    const container = Container.register("dependency", () => dependency)
+  describe("scenario", () => {
+    it("resolves registered dependency", () => {
+      const dependency = { test: () => console.info("testing!") }
+      const container = Container.register("dependency", () => dependency)
 
-    const resolved = container.resolve("dependency")
-    expect(resolved).toBe(dependency)
-  })
+      const resolved = container.resolve("dependency")
+      expect(resolved).toBe(dependency)
+    })
 
-  it("resolves classes", () => {
-    const container = Container.register("dependency", () => TestDependency)
+    it("resolves classes", () => {
+      const container = Container.register("wheels", () => Wheels)
 
-    const resolved = container.resolve<TestDependency>("dependency")
-    expect(resolved).toEqual(TestDependency)
-  })
+      const resolved = container.resolve<Wheels>("wheels")
+      expect(resolved).toEqual(Wheels)
+    })
 
-  it("creates a context", () => {
-    const context = Container.register(
-      "dependency",
-      () => TestDependency
-    ).context()
+    it("creates a context", () => {
+      const context = Container.build<TestContext>()
+        .register("wheels", () => Wheels)
+        .context()
 
-    const DependencyClass = context.dependency
-    const dependency = new DependencyClass()
+      const Klass = context.wheels
+      const wheels = new Klass(context, 4)
 
-    expect(context).toBeTruthy()
-    expect(DependencyClass).toBeTruthy()
-    expect(dependency.test).toBeTruthy()
-  })
+      expect(context).toBeTruthy()
+      expect(Klass).toBeTruthy()
+      expect(wheels.test).toBeTruthy()
+    })
 
-  it("understands singletons", () => {
-    const context = Container.instance("dependency", TestDependency).context()
+    it("understands singletons", () => {
+      const context = Container.instance("wheels", Wheels).context()
+      expect(context.wheels.test).toBeTruthy()
+    })
 
-    expect(context.dependency.test).toBeTruthy()
-  })
+    it("creates singletons lazily", () => {
+      const context = Container.instance("dependent", Car)
+        .instance("wheels", Wheels, 1)
+        .context()
 
-  it("creates singletons lazily", () => {
-    const context = Container.instance("dependent", DependentDependency)
-      .instance("dependency", TestDependency)
-      .context()
+      expect(context.dependent.test()).toEqual(1)
+    })
 
-    expect(context.dependent.test()).toEqual(1)
-  })
+    it("allows groupings of containers", () => {
+      const context = Container.group("dependencies", (container) =>
+        container.instance("wheels", Wheels)
+      ).context()
 
-  it("allows groupings of containers", () => {
-    const context = Container.group("dependencies", (container) =>
-      container.instance("dependency", TestDependency)
-    ).context()
+      expect(context.dependencies.wheels.test).toBeTruthy()
+    })
 
-    expect(context.dependencies.dependency.test).toBeTruthy()
-  })
+    it("groupings have access to lazy dependencies in parent", () => {
+      const context = Container.instance("wheels", Wheels, 1)
+        .group("dependencies", (container) => container.instance("car", Car))
+        .context()
 
-  it("groupings have access to lazy dependencies in parent", () => {
-    const context = Container.instance("dependency", TestDependency)
-      .group("dependencies", (container) =>
-        container.instance("dependent", DependentDependency)
-      )
-      .context()
+      expect(context.dependencies.car.test()).toEqual(1)
+    })
 
-    expect(context.dependencies.dependent.test()).toEqual(1)
-  })
+    it("groupings have access to lazy dependencies in parent by registration", () => {
+      const context = Container.build<TestContext>()
+        .instance("wheels", Wheels, 4)
+        .group("dependencies", (container) =>
+          container.register(
+            "car",
+            (container) => new Car(container, "Test Car")
+          )
+        )
+        .context()
 
-  it("can pass in additional parameters to the constructor of a singleton", () => {
-    const context = Container.instance("dependency", TestDependency)
-      .group("dependencies", (container) =>
-        container.instance("dependent", DependentDependency, 3)
-      )
-      .context()
+      expect(context.dependencies.car.test()).toEqual(4)
+    })
 
-    expect(context.dependencies.dependent.test()).toEqual(3)
-  })
+    it("dependencies of groupings of groupings resolve correctly", () => {
+      const context = Container.build<TestContext>()
+        .instance("wheels", Wheels, 4)
+        .instance("transmission", Transmission)
+        .group("dependencies", (dependencies) =>
+          dependencies.group("machines", (machines) =>
+            machines.register("car", (context) => new Car(context, "Test Car"))
+          )
+        )
+        .context()
 
-  it("returns a singleton", () => {
-    const context = Container.instance(
-      "randomizer",
-      RandomizerDependency
-    ).context()
+      expect(context.transmission.belongsTo()).toEqual("Test Car")
+    })
 
-    expect(context.randomizer.id).toEqual(context.randomizer.id)
-  })
+    it("can pass in additional parameters to the constructor of a singleton", () => {
+      const context = Container.instance("wheels", Wheels, 3)
+        .group("dependencies", (container) => container.instance("car", Car))
+        .context()
 
-  it("does not return a singleton when transient", () => {
-    const context = Container.register(
-      "randomizer",
-      () => new RandomizerDependency(),
-      { transient: true }
-    ).context()
+      expect(context.dependencies.car.test()).toEqual(3)
+    })
 
-    expect(context.randomizer.id).not.toEqual(context.randomizer.id)
+    it("returns a singleton", () => {
+      const context = Container.instance(
+        "randomizer",
+        RandomizerDependency
+      ).context()
+
+      expect(context.randomizer.id).toEqual(context.randomizer.id)
+    })
+
+    it("does not return a singleton when transient", () => {
+      const context = Container.register(
+        "randomizer",
+        () => new RandomizerDependency(),
+        { transient: true }
+      ).context()
+
+      expect(context.randomizer.id).not.toEqual(context.randomizer.id)
+    })
   })
 })

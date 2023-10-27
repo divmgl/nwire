@@ -1,15 +1,16 @@
-// src/Container.ts
-var Container = class _Container {
-  _registry;
-  _map;
-  _transient;
-  constructor() {
+"use strict";
+export class Container {
+  constructor(_parentContainer) {
+    this._parentContainer = _parentContainer;
     this._transient = /* @__PURE__ */ new Set();
     this._registry = /* @__PURE__ */ new Map();
     this._map = /* @__PURE__ */ new Map();
   }
+  _registry;
+  _map;
+  _transient;
   static build() {
-    return new _Container();
+    return new Container();
   }
   context(rootContext = {}) {
     const handler = {
@@ -36,30 +37,37 @@ var Container = class _Container {
   }
   // Add a subcontext to a property of this context
   group(key, decorator) {
-    this._map.set(key, () => this.context(decorator(this).context()));
+    const nestedContainer = new Container(this._parentContainer ?? this);
+    const value = decorator(nestedContainer).context();
+    this.register(key, () => value);
     return this;
   }
   static group(key, decorator) {
-    return _Container.build().group(key, decorator);
+    return Container.build().group(key, decorator);
   }
   instance(key, ValueClass, ...args) {
-    this._map.set(key, () => new ValueClass(this.context(), ...args));
+    this._map.set(
+      key,
+      () => new ValueClass((this._parentContainer ?? this).context(), ...args)
+    );
     return this;
   }
   static instance(key, ValueClass, ...args) {
-    return _Container.build().instance(key, ValueClass, ...args);
+    return Container.build().instance(key, ValueClass, ...args);
   }
   register(key, value, { transient } = { transient: false }) {
     this._map.set(
       key,
-      () => value(this.context())
+      () => value(
+        (this._parentContainer ?? this).context()
+      )
     );
     if (transient)
       this._transient.add(key);
     return this;
   }
   static register(key, value, options) {
-    return _Container.build().register(key, value, options);
+    return Container.build().register(key, value, options);
   }
   unregister(key) {
     this._map.delete(key);
@@ -68,20 +76,9 @@ var Container = class _Container {
     return this;
   }
   static unregister(key) {
-    return _Container.build().unregister(key);
+    return Container.build().unregister(key);
   }
   resolve(key) {
     return this._map.get(key)?.(this.context());
   }
-};
-
-// src/Injected.ts
-var Injected = class {
-  constructor(context) {
-    this.context = context;
-  }
-};
-export {
-  Container,
-  Injected
-};
+}

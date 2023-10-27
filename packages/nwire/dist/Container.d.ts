@@ -14,13 +14,14 @@ type RegistrationOptions = {
     transient?: boolean;
 };
 export declare class Container<TContext extends Context = {}> {
+    private _parentContainer?;
     private _registry;
     private _map;
     private _transient;
-    constructor();
-    static build(): Container;
+    constructor(_parentContainer?: Container<TContext> | undefined);
+    static build<T extends Context = {}>(): Container<T>;
     context<TWriteContext extends Context = TContext>(rootContext?: Context): TWriteContext;
-    group<TNewKey extends string, TNewContext extends Context>(key: TNewKey, decorator: (container: Container<TContext>) => Container<TNewContext>): Container<MergeContext<Context, TNewKey, TNewContext>>;
+    group<TNewKey extends string, TNewContext extends Context>(key: TNewKey, decorator: (container: Container<TContext>) => Container<TNewContext>): Container<MergeContext<TContext, TNewKey, TNewContext>>;
     static group<TNewKey extends string, TNewContext extends Context>(key: TNewKey, decorator: (container: Container<Context>) => Container<TNewContext>): Container<MergeContext<Context, TNewKey, TNewContext>>;
     instance<TNewKey extends string, TValue>(key: TNewKey, ValueClass: Instance<TValue>, ...args: any[]): Container<MergeContext<TContext, TNewKey, TValue>>;
     static instance<TNewKey extends string, TValue>(key: TNewKey, ValueClass: Instance<TValue>, ...args: any[]): Container<MergeContext<Context, TNewKey, TValue>>;

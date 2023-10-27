@@ -1,7 +1,7 @@
 {
   "name": "nwire",
   "description": "Simplified dependency injection for Node.js",
-  "version": "1.0.4",
+  "version": "1.0.6",
   "repository": {
     "type": "git",
     "url": "https://github.com/divmgl/nwire",
@@ -12,7 +12,7 @@
   },
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
-  "module": "dist/index.esm.js",
+  "module": "dist/esm/index.esm.js",
   "sideEffects": false,
   "engines": {
     "node": ">=14.0.0"
@@ -23,10 +23,10 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "rimraf dist && concurrently \"pnpm run build:cjs\" \"pnpm run build:esm\" \"pnpm run build:types\"",
+    "build": "rimraf dist && pnpm run build:cjs && pnpm run build:esm && pnpm run build:types && rimraf dist/*.test.js dist/**/*.test.js",
     "build:types": "tsc",
-    "build:cjs": "esbuild src/index.ts --bundle --outfile=dist/index.js",
-    "build:esm": "esbuild src/index.ts --bundle --outfile=dist/index.esm.js --format=esm",
+    "build:cjs": "esbuild src/**/*.ts --outdir=dist/",
+    "build:esm": "esbuild src/**/*.ts --outdir=dist/esm/ --format=esm",
     "test": "vitest run",
     "testing": "vitest"
   },
@@ -40,8 +40,8 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.esm.js",
-      "require": "./dist/index.js"
+      "import": "./dist/",
+      "require": "./dist/"
     }
   }
 }

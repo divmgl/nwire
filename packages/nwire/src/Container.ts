@@ -23,14 +23,14 @@ export class Container<TContext extends Context = {}> {
   private _map: Map<string, (context: TContext) => unknown>
   private _transient: Set<string>
 
-  constructor() {
+  constructor(private _parentContainer?: Container<TContext>) {
     this._transient = new Set<string>()
     this._registry = new Map<string, unknown>()
     this._map = new Map<string, (context: TContext) => unknown>()
   }
 
-  static build(): Container {
-    return new Container()
+  static build<T extends Context = {}>(): Container<T> {
+    return new Container<T>()
   }
 
   context<TWriteContext extends Context = TContext>(
@@ -66,8 +66,10 @@ export class Container<TContext extends Context = {}> {
   group<TNewKey extends string, TNewContext extends Context>(
     key: TNewKey,
     decorator: (container: Container<TContext>) => Container<TNewContext>
-  ): Container<MergeContext<Context, TNewKey, TNewContext>> {
-    this._map.set(key, () => this.context(decorator(this).context()))
+  ): Container<MergeContext<TContext, TNewKey, TNewContext>> {
+    const nestedContainer = new Container(this._parentContainer ?? this)
+    const value = decorator(nestedContainer).context()
+    this.register(key, () => value)
     return this as any
   }
 
@@ -83,7 +85,10 @@ export class Container<TContext extends Context = {}> {
     ValueClass: Instance<TValue>,
     ...args: any[]
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
-    this._map.set(key, () => new ValueClass(this.context(), ...args))
+    this._map.set(
+      key,
+      () => new ValueClass((this._parentContainer ?? this).context(), ...args)
+    )
     return this as any
   }
 
@@ -101,7 +106,13 @@ export class Container<TContext extends Context = {}> {
     { transient }: RegistrationOptions = { transient: false }
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
     this._map.set(key, () =>
-      value(this.context() as MergeContext<TContext, TNewKey, TValue>)
+      value(
+        (this._parentContainer ?? this).context() as MergeContext<
+          TContext,
+          TNewKey,
+          TValue
+        >
+      )
     )
 
     if (transient) this._transient.add(key)

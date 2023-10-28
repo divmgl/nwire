@@ -1,5 +1,5 @@
 import { Context } from "./Container";
 export declare class Injected<TContext extends Context> {
-    protected context: TContext;
-    constructor(context: TContext);
+    protected _context: TContext;
+    constructor(_context: TContext);
 }

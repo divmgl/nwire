@@ -1,5 +1,6 @@
 import { describe, expect, it, test } from "vitest"
 import { Container } from "./Container"
+import { Injected } from "./Injected"
 
 class RandomizerDependency {
   constructor() {
@@ -183,6 +184,62 @@ describe("nwire", () => {
       ).context()
 
       expect(context.randomizer.id).not.toEqual(context.randomizer.id)
+    })
+
+    it("root context takes precedence", () => {
+      const context = Container.register("hello", () => "hello").context({
+        world: "world",
+      })
+
+      expect(context.world).toEqual("world")
+    })
+  })
+
+  describe("injected", () => {
+    it("handles circular references", () => {
+      type Services = {
+        a: A
+        b: B
+      }
+
+      type TestContext = {
+        a: A
+        b: B
+        services: Services
+      }
+
+      class A extends Injected<TestContext> {
+        services = this._context.services
+
+        test() {
+          return this.services.b.something()
+        }
+
+        something() {
+          return "1"
+        }
+      }
+      class B extends Injected<TestContext> {
+        services = this._context.services
+
+        test() {
+          return this.services.a.something()
+        }
+
+        something() {
+          return "2"
+        }
+      }
+
+      const context = Container.instance("a", A)
+        .instance("b", B)
+        .register("services", (context) => ({ a: context.a, b: context.b }))
+        .copy<TestContext>()
+
+      console.log(context)
+
+      expect(context.b.test()).toEqual("1")
+      expect(context.a.test()).toEqual("2")
     })
   })
 })

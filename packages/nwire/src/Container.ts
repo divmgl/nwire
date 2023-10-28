@@ -1,6 +1,9 @@
+import { CountingSet } from "./CountingSet"
+
 export type Context = {
   [key: string]: unknown
 }
+
 export type Instance<TValue> = {
   new (context: any, ...args: any[]): TValue
 }
@@ -21,11 +24,9 @@ export class Container<TContext extends Context = {}> {
   private _registry: Map<string, unknown> = new Map<string, unknown>()
   private _resolvers: Map<
     string,
-    (context: TContext, resolved: Set<unknown>) => unknown
+    (context: TContext, resolved: CountingSet<unknown>) => unknown
   > = new Map<string, (context: TContext) => unknown>()
   private _transient: Set<string> = new Set<string>()
-  private _registeredDecorators: Set<unknown> = new Set<unknown>()
-  private _decoratorMap: Map<unknown, unknown> = new Map<unknown, unknown>()
 
   constructor(private _parentContainer?: Container<TContext>) {}
 
@@ -45,38 +46,29 @@ export class Container<TContext extends Context = {}> {
       } else if (this._registry.has(key)) {
         acc[key] = this._registry.get(key)
       } else {
-        acc[key] = this._resolvers.get(key)!(this.context(), new Set())
+        acc[key] = this.resolve(key)
       }
 
       return acc
     }, {}) as TContext
 
     return {
+      ...context,
       ...rootContext,
-      ...(handleCircularReferences(
-        context as unknown as Serializable
-      ) as TContext),
-    }
+    } as TContext
   }
 
   context<TWriteContext extends Context = TContext>(
     rootContext: Context = {},
-    resolved: Set<unknown> = new Set<unknown>()
+    resolved: CountingSet<unknown> = new CountingSet<unknown>()
   ): TWriteContext {
     const cache: Record<string, unknown> = {}
-    // console.log({ start: resolving })
 
     const handler = {
       get: (target: TContext, key: string) => {
         if (cache.hasOwnProperty(key)) return cache[key]
         if (target.hasOwnProperty(key)) return target[key]
-        if (this._registry.has(key)) return this._registry.get(key)
-        if (!this._resolvers.has(key)) return target[key]
-
-        const resolver = this._resolvers.get(key)!
-        const instance = resolver(target, resolved.add(resolver))
-
-        return instance
+        return this.resolve(key, resolved)
       },
       set: (_target: Context, key: string, value: unknown) => {
         cache[key] = value
@@ -109,51 +101,28 @@ export class Container<TContext extends Context = {}> {
 
   instance<TNewKey extends string, TValue>(
     key: TNewKey,
-    ValueClass: Instance<TValue>,
+    ClassConstructor: Instance<TValue>,
     ...args: any[]
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
-    this.register(key, (context) => new ValueClass(context, ...args))
+    this.register(key, (context) => new ClassConstructor(context, ...args))
     return this as any
   }
 
   static instance<TNewKey extends string, TValue>(
     key: TNewKey,
-    ValueClass: Instance<TValue>,
+    ClassConstructor: Instance<TValue>,
     ...args: any[]
   ): Container<MergeContext<Context, TNewKey, TValue>> {
-    return Container.build().instance(key, ValueClass, ...args) as any
+    return Container.build().instance(key, ClassConstructor, ...args) as any
   }
 
   register<TNewKey extends string, TValue>(
     key: TNewKey,
-    resolver: (context: TContext, resolvedSet: Set<unknown>) => TValue,
+    resolver: (context: TContext, resolvedSet: CountingSet<unknown>) => TValue,
     { transient }: RegistrationOptions = { transient: false }
   ): Container<MergeContext<TContext, TNewKey, TValue>> {
     if (transient) this._transient.add(key)
-
-    this._resolvers.set(key, (_context, resolvedSet = new Set<unknown>()) => {
-      // Check if the key is already in the registry. If it is, return it.
-      if (this._registry.has(key)) return this._registry.get(key)
-
-      if (resolvedSet.has(resolver)) return
-
-      const effectiveContainer = this._parentContainer ?? this
-      const value = resolver(
-        effectiveContainer.context(
-          undefined,
-          resolvedSet.add(resolver)
-        ) as MergeContext<TContext, TNewKey, TValue>,
-        // new Set()
-        resolvedSet.add(resolver)
-      )
-
-      resolvedSet.delete(resolver)
-
-      if (!this._transient.has(key)) this._registry.set(key, value)
-
-      return value
-    })
-
+    this._resolvers.set(key, resolver)
     return this as any
   }
 
@@ -169,15 +138,7 @@ export class Container<TContext extends Context = {}> {
     key: TNewKey
   ): Container<Omit<TContext, TNewKey>> {
     this._resolvers.delete(key)
-
-    const value = this._registry.get(key)
-    if (value) {
-      const ValueClass = this._decoratorMap.get(value)
-
-      this._registeredDecorators.delete(ValueClass)
-      this._registry.delete(key)
-    }
-
+    this._registry.delete(key)
     this._transient.delete(key)
 
     return this as any
@@ -189,11 +150,32 @@ export class Container<TContext extends Context = {}> {
     return Container.build().unregister(key) as any
   }
 
-  resolve<T>(key: keyof TContext): T {
-    return this._resolvers.get(key as string)?.(
-      this.context(),
-      new Set()
+  resolve<T>(
+    key: keyof TContext,
+    resolved: CountingSet<unknown> = new CountingSet()
+  ): T {
+    if (this._registry.has(key as string)) {
+      return this._registry.get(key as string) as unknown as T
+    }
+
+    const resolver = this._resolvers.get(key as string)!
+    if (!resolver) return undefined as unknown as T
+    if (resolved.count(resolver) > 1) return undefined as unknown as T
+
+    const context = this.context(undefined, resolved.add(resolver))
+
+    const value = resolver(
+      this._parentContainer?.context(undefined, resolved) ?? context,
+      resolved.add(resolver)
     ) as unknown as T
+
+    resolved.delete(resolver)
+
+    if (!this._transient.has(key as string)) {
+      this._registry.set(key as string, value)
+    }
+
+    return value
   }
 }
 
@@ -220,9 +202,7 @@ function handleCircularReferences(
     return undefined
   }
 
-  path.push(obj)
-
-  console.log(path)
+  // path.push(obj)
 
   let result: Serializable
   if (Array.isArray(obj)) {

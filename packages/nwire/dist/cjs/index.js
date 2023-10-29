@@ -21,7 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var src_exports = {};
 __export(src_exports, {
   Container: () => Container,
-  Injected: () => Injected
+  Singleton: () => Singleton,
+  WithContextProperties: () => WithContextProperties
 });
 module.exports = __toCommonJS(src_exports);
 
@@ -71,66 +72,120 @@ var CountingSet = class {
 
 // src/Container.ts
 var Container = class _Container {
-  constructor(_parentContainer) {
-    this._parentContainer = _parentContainer;
-  }
   _registry = /* @__PURE__ */ new Map();
   _resolvers = /* @__PURE__ */ new Map();
+  _cache = /* @__PURE__ */ new Map();
   _transient = /* @__PURE__ */ new Set();
-  static build() {
+  _base = {};
+  _rootContainer;
+  _parentContainer;
+  constructor(rootContainer, _parentContainer) {
+    this._rootContainer = rootContainer ?? this;
+    this._parentContainer = _parentContainer ?? this._rootContainer;
+  }
+  get root() {
+    return this._rootContainer;
+  }
+  get parent() {
+    return this._parentContainer;
+  }
+  static new() {
     return new _Container();
   }
-  copy(rootContext = {}) {
-    const keys = Array.from(this._resolvers.keys());
-    const context = keys.reduce((acc, key) => {
-      if (rootContext.hasOwnProperty(key)) {
-        acc[key] = rootContext[key];
-      } else if (this._registry.has(key)) {
-        acc[key] = this._registry.get(key);
-      } else {
-        acc[key] = this.resolve(key);
-      }
-      return acc;
-    }, {});
-    return {
-      ...context,
-      ...rootContext
-    };
+  static build() {
+    return _Container.new();
   }
-  context(rootContext = {}, resolved = new CountingSet()) {
+  base(base) {
+    this._base = base;
+    return this;
+  }
+  createContextProxy() {
     const cache = {};
+    const resolving = new CountingSet();
     const handler = {
       get: (target, key) => {
         if (cache.hasOwnProperty(key))
           return cache[key];
         if (target.hasOwnProperty(key))
           return target[key];
-        return this.resolve(key, resolved);
+        return resolve(key);
       },
       set: (_target, key, value) => {
         cache[key] = value;
         return true;
       }
     };
-    const proxy = new Proxy(rootContext, handler);
+    const proxy = new Proxy({}, handler);
+    const resolve = (key) => {
+      var _a;
+      if ((_a = this._base) == null ? void 0 : _a[key])
+        return this._base[key];
+      const resolver = this._resolvers.get(key);
+      if (this._registry.has(key)) {
+        resolving.delete(resolver);
+        return this._registry.get(key);
+      }
+      if (resolving.count(resolver) > 1) {
+        resolving.delete(resolver);
+        return this._cache.get(resolver);
+      }
+      const value = resolver == null ? void 0 : resolver(
+        this._rootContainer.context()
+      );
+      resolving.delete(resolver);
+      if (!this._transient.has(key)) {
+        this._registry.set(key, value);
+        this._parentContainer._registry.set(key, value);
+        this._cache.set(resolver, value);
+      }
+      return value;
+    };
     return proxy;
+  }
+  context(override = {}) {
+    const keys = Array.from(this._resolvers.keys());
+    const proxy = this.createContextProxy();
+    const context = keys.reduce(
+      (acc, key) => {
+        Object.defineProperty(acc, key, {
+          get: () => {
+            return proxy[key];
+          },
+          enumerable: true
+        });
+        return acc;
+      },
+      { ...this._base }
+    );
+    return Object.assign(context, override);
   }
   // Add a subcontext to a property of this context
   group(key, decorator) {
-    const nestedContainer = new _Container(this._parentContainer ?? this);
-    const value = decorator(nestedContainer).context();
-    this.register(key, () => value);
+    const groupContainer = decorator(new _Container(this._rootContainer, this));
+    const groupContext = groupContainer.context();
+    this.register(key, () => groupContext);
+    const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
+      (acc, key2) => {
+        return {
+          ...acc,
+          get [key2]() {
+            return groupContext[key2];
+          }
+        };
+      },
+      {}
+    );
+    this._registry.set(key, grouping);
     return this;
   }
-  static group(key, decorator) {
-    return _Container.build().group(key, decorator);
+  singleton(key, ClassConstructor, ...args) {
+    return this.register(
+      key,
+      (context) => new ClassConstructor(context, ...args)
+    );
   }
   instance(key, ClassConstructor, ...args) {
-    this.register(key, (context) => new ClassConstructor(context, ...args));
-    return this;
-  }
-  static instance(key, ClassConstructor, ...args) {
-    return _Container.build().instance(key, ClassConstructor, ...args);
+    return this.singleton(key, ClassConstructor, ...args);
   }
   register(key, resolver, { transient } = { transient: false }) {
     if (transient)
@@ -138,50 +193,49 @@ var Container = class _Container {
     this._resolvers.set(key, resolver);
     return this;
   }
-  static register(key, value, options) {
-    return _Container.build().register(key, value, options);
-  }
   unregister(key) {
     this._resolvers.delete(key);
     this._registry.delete(key);
     this._transient.delete(key);
     return this;
   }
-  static unregister(key) {
-    return _Container.build().unregister(key);
-  }
-  resolve(key, resolved = new CountingSet()) {
-    var _a;
-    if (this._registry.has(key)) {
-      return this._registry.get(key);
-    }
+  resolve(key) {
     const resolver = this._resolvers.get(key);
     if (!resolver)
-      return void 0;
-    if (resolved.count(resolver) > 1)
-      return void 0;
-    const context = this.context(void 0, resolved.add(resolver));
-    const value = resolver(
-      ((_a = this._parentContainer) == null ? void 0 : _a.context(void 0, resolved)) ?? context,
-      resolved.add(resolver)
-    );
-    resolved.delete(resolver);
-    if (!this._transient.has(key)) {
-      this._registry.set(key, value);
-    }
-    return value;
+      throw new Error(`dependency ${String(key)} not registered`);
+    return resolver(this._rootContainer.context());
+  }
+  middleware(middleware) {
+    return middleware(this);
   }
 };
 
-// src/Injected.ts
-var Injected = class {
-  constructor(_context) {
-    this._context = _context;
+// src/Singleton.ts
+function WithContextProperties(Base) {
+  return class extends Base {
+    constructor(context) {
+      super(context);
+      for (const key in context) {
+        Object.defineProperty(this, key, {
+          get: function() {
+            return context[key];
+          },
+          enumerable: true
+        });
+      }
+    }
+  };
+}
+var Singleton = class {
+  _context;
+  constructor(context) {
+    this._context = context;
   }
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Container,
-  Injected
+  Singleton,
+  WithContextProperties
 });
 //# sourceMappingURL=index.js.map

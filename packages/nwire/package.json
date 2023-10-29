@@ -1,7 +1,7 @@
 {
   "name": "nwire",
   "description": "Simplified dependency injection for Node.js",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/divmgl/nwire",
@@ -24,7 +24,7 @@
   "license": "MIT",
   "scripts": {
     "build": "rimraf dist && node ./esbuild.config.js && tsc && rimraf dist/*.test.js dist/**/*.test.js",
-    "dev": "pnpx nodemon",
+    "dev": "nodemon",
     "test": "vitest run",
     "testing": "vitest --inspect --single-thread"
   },
@@ -32,6 +32,7 @@
     "@types/node": "20.8.9",
     "concurrently": "8.2.2",
     "esbuild": "0.19.5",
+    "nodemon": "3.0.1",
     "rimraf": "5.0.5",
     "typescript": "5.2.2",
     "vitest": "0.34.6"

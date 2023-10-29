@@ -1,6 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/SchemaStore/schemastore/master/src/schemas/json/nodemon.json",
-  "watch": ["./src/*.ts"],
-  "ignore": ["./src/**/*.test.ts"],
+  "verbose": true,
+  "watch": ["src/**/*.ts"],
   "exec": "pnpm build"
 }

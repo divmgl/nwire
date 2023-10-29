@@ -1,2 +1,2 @@
-export { Container, Instance } from "./Container"
-export { Injected } from "./Injected"
+export { Container, Instance, Context } from "./Container"
+export { Singleton, WithContextProperties } from "./Singleton"

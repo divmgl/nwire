@@ -7,7 +7,7 @@ type MyTypedContext = {
 
 export class MyService extends Injected<MyTypedContext> {
   helloWorld() {
-    return this.context.banner
+    return this._context.banner
   }
 }
 

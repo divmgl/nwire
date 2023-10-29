@@ -6,7 +6,8 @@ start()
 // Can use top-level `await` in ESM.
 async function start() {
   try {
-    const server = createServer(await createContext())
+    const context = await createContext()
+    const server = createServer(context)
 
     server.listen({ port: 3000 }, (err, address) => {
       if (err) {

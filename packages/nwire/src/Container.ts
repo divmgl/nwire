@@ -10,7 +10,7 @@ export type Instance<TValue> = {
 
 type Flatten<T> = {} & { [P in keyof T]: T[P] }
 
-type MergeContext<TExisting, TKey extends string, TValue> = Flatten<
+type AppendContext<TExisting, TKey extends string, TValue> = Flatten<
   TExisting & {
     [P in TKey]: TValue
   }
@@ -22,53 +22,53 @@ type RegistrationOptions = {
 
 export class Container<TContext extends Context = {}> {
   private _registry: Map<string, unknown> = new Map<string, unknown>()
-  private _resolvers: Map<
+  private _resolvers: Map<string, (context: TContext) => unknown> = new Map<
     string,
-    (context: TContext, resolved: CountingSet<unknown>) => unknown
-  > = new Map<string, (context: TContext) => unknown>()
+    (context: TContext) => unknown
+  >()
+  private _cache: Map<(context: TContext) => unknown, unknown> = new Map()
   private _transient: Set<string> = new Set<string>()
+  private _base: Record<string, unknown> = {}
 
-  constructor(private _parentContainer?: Container<TContext>) {}
+  private _rootContainer: Container | this
+  private _parentContainer: Container | this
 
-  static build<T extends Context = {}>(): Container<T> {
+  constructor(rootContainer?: Container, _parentContainer?: Container) {
+    this._rootContainer = rootContainer ?? this
+    this._parentContainer = _parentContainer ?? this._rootContainer
+  }
+
+  get root() {
+    return this._rootContainer
+  }
+
+  get parent() {
+    return this._parentContainer
+  }
+
+  static new<T extends Context = {}>(): Container<T> {
     return new Container<T>()
   }
 
-  copy<TContext>(rootContext: Context = {}): TContext {
-    // Get all of the keys in the map
-    const keys = Array.from(this._resolvers.keys())
-
-    // Create an object that either has the value from the root context, the value from the registry
-    // or gets the value from the map's generator.
-    const context = keys.reduce((acc: Record<string, unknown>, key) => {
-      if (rootContext.hasOwnProperty(key)) {
-        acc[key] = rootContext[key]
-      } else if (this._registry.has(key)) {
-        acc[key] = this._registry.get(key)
-      } else {
-        acc[key] = this.resolve(key)
-      }
-
-      return acc
-    }, {}) as TContext
-
-    return {
-      ...context,
-      ...rootContext,
-    } as TContext
+  static build<T extends Context = {}>() {
+    return Container.new<T>()
   }
 
-  context<TWriteContext extends Context = TContext>(
-    rootContext: Context = {},
-    resolved: CountingSet<unknown> = new CountingSet<unknown>()
-  ): TWriteContext {
+  base<TBase extends Context>(base: TBase): Container<TContext & TBase> {
+    this._base = base
+    return this as any
+  }
+
+  createContextProxy() {
     const cache: Record<string, unknown> = {}
+    const resolving = new CountingSet<unknown>()
 
     const handler = {
       get: (target: TContext, key: string) => {
         if (cache.hasOwnProperty(key)) return cache[key]
         if (target.hasOwnProperty(key)) return target[key]
-        return this.resolve(key, resolved)
+
+        return resolve(key)
       },
       set: (_target: Context, key: string, value: unknown) => {
         cache[key] = value
@@ -76,62 +76,124 @@ export class Container<TContext extends Context = {}> {
       },
     }
 
-    const proxy = new Proxy<TContext>(rootContext as TContext, handler)
+    const proxy = new Proxy({}, handler)
 
-    return proxy as unknown as TWriteContext
+    const resolve = <TValue>(key: keyof TContext) => {
+      if (this._base?.[key as string])
+        return this._base[key as string] as TValue
+
+      const resolver = this._resolvers.get(key as string)!
+
+      if (this._registry.has(key as string)) {
+        resolving.delete(resolver)
+        return this._registry.get(key as string) as unknown as TValue
+      }
+
+      if (resolving.count(resolver) > 1) {
+        resolving.delete(resolver)
+        return this._cache.get(resolver) as unknown as TValue
+      }
+
+      const value = resolver?.(
+        this._rootContainer.context() as unknown as TContext
+      ) as unknown as TValue
+
+      resolving.delete(resolver)
+
+      if (!this._transient.has(key as string)) {
+        this._registry.set(key as string, value)
+        this._parentContainer._registry.set(key as string, value)
+        this._cache.set(resolver, value)
+      }
+
+      return value
+    }
+
+    return proxy
+  }
+
+  context<
+    TWriteContext extends Context = TContext,
+    TOverride extends Context = {}
+  >(override: TOverride | {} = {}): Flatten<TWriteContext & TOverride> {
+    // Get all of the keys for the resolvers in this container
+    const keys = Array.from(this._resolvers.keys())
+
+    const proxy = this.createContextProxy()
+
+    const context = keys.reduce(
+      (acc, key) => {
+        Object.defineProperty(acc, key, {
+          get: () => {
+            return proxy[key as keyof typeof proxy]
+          },
+          enumerable: true,
+        })
+
+        return acc
+      },
+      { ...this._base } as Flatten<TWriteContext & TOverride>
+    )
+
+    return Object.assign(context, override)
   }
 
   // Add a subcontext to a property of this context
   group<TNewKey extends string, TNewContext extends Context>(
     key: TNewKey,
-    decorator: (container: Container<TContext>) => Container<TNewContext>
-  ): Container<MergeContext<TContext, TNewKey, TNewContext>> {
-    const nestedContainer = new Container(this._parentContainer ?? this)
-    const value = decorator(nestedContainer).context()
-    this.register(key, () => value)
-    return this as any
+    decorator: (container: Container<{}>) => Container<TNewContext>
+  ) {
+    // @ts-expect-error
+    // Create a new container for the group and set this container as the parent.
+    const groupContainer = decorator(new Container(this._rootContainer, this))
+
+    const groupContext = groupContainer.context()
+    this.register(key, () => groupContext)
+
+    const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
+      (acc, key) => {
+        return {
+          ...acc,
+          get [key]() {
+            return groupContext[key]
+          },
+        }
+      },
+      {} as TNewContext
+    )
+
+    this._registry.set(key as string, grouping)
+
+    return this as Container<TContext & { [key in TNewKey]: TNewContext }>
   }
 
-  static group<TNewKey extends string, TNewContext extends Context>(
+  singleton<TNewKey extends string, TValue>(
     key: TNewKey,
-    decorator: (container: Container<Context>) => Container<TNewContext>
-  ): Container<MergeContext<Context, TNewKey, TNewContext>> {
-    return Container.build().group(key, decorator) as any
+    ClassConstructor: Instance<TValue>,
+    ...args: any[]
+  ) {
+    return this.register(
+      key,
+      (context) => new ClassConstructor(context, ...args)
+    )
   }
 
   instance<TNewKey extends string, TValue>(
     key: TNewKey,
     ClassConstructor: Instance<TValue>,
     ...args: any[]
-  ): Container<MergeContext<TContext, TNewKey, TValue>> {
-    this.register(key, (context) => new ClassConstructor(context, ...args))
-    return this as any
-  }
-
-  static instance<TNewKey extends string, TValue>(
-    key: TNewKey,
-    ClassConstructor: Instance<TValue>,
-    ...args: any[]
-  ): Container<MergeContext<Context, TNewKey, TValue>> {
-    return Container.build().instance(key, ClassConstructor, ...args) as any
+  ) {
+    return this.singleton(key, ClassConstructor, ...args)
   }
 
   register<TNewKey extends string, TValue>(
     key: TNewKey,
-    resolver: (context: TContext, resolvedSet: CountingSet<unknown>) => TValue,
+    resolver: (context: TContext) => TValue,
     { transient }: RegistrationOptions = { transient: false }
-  ): Container<MergeContext<TContext, TNewKey, TValue>> {
+  ): Container<AppendContext<TContext, TNewKey, TValue>> {
     if (transient) this._transient.add(key)
     this._resolvers.set(key, resolver)
     return this as any
-  }
-
-  static register<TNewKey extends string, TValue>(
-    key: TNewKey,
-    value: (context: Context) => TValue,
-    options?: RegistrationOptions
-  ): Container<MergeContext<Context, TNewKey, TValue>> {
-    return Container.build().register(key, value, options) as any
   }
 
   unregister<TNewKey extends string>(
@@ -144,82 +206,15 @@ export class Container<TContext extends Context = {}> {
     return this as any
   }
 
-  static unregister<TNewKey extends string>(
-    key: TNewKey
-  ): Container<Omit<Context, TNewKey>> {
-    return Container.build().unregister(key) as any
+  resolve<TValue>(key: keyof TContext): TValue {
+    const resolver = this._resolvers.get(key as string)
+    if (!resolver) throw new Error(`dependency ${String(key)} not registered`)
+    return resolver(this._rootContainer.context() as TContext) as TValue
   }
 
-  resolve<T>(
-    key: keyof TContext,
-    resolved: CountingSet<unknown> = new CountingSet()
-  ): T {
-    if (this._registry.has(key as string)) {
-      return this._registry.get(key as string) as unknown as T
-    }
-
-    const resolver = this._resolvers.get(key as string)!
-    if (!resolver) return undefined as unknown as T
-    if (resolved.count(resolver) > 1) return undefined as unknown as T
-
-    const context = this.context(undefined, resolved.add(resolver))
-
-    const value = resolver(
-      this._parentContainer?.context(undefined, resolved) ?? context,
-      resolved.add(resolver)
-    ) as unknown as T
-
-    resolved.delete(resolver)
-
-    if (!this._transient.has(key as string)) {
-      this._registry.set(key as string, value)
-    }
-
-    return value
+  middleware<TNewContext extends Context>(
+    middleware: (container: Container<TContext>) => Container<TNewContext>
+  ) {
+    return middleware(this)
   }
-}
-
-type Serializable =
-  | null
-  | string
-  | number
-  | boolean
-  | undefined
-  | { [key: string]: Serializable }
-  | Serializable[]
-
-function handleCircularReferences(
-  obj: Serializable,
-  path: Serializable[] = []
-): Serializable {
-  if (obj === null) return null
-  if (typeof obj !== "object") return obj
-
-  const occurrence = path.filter((p) => p === obj).length
-
-  // If this object appears more than once in the current path, it's a circular reference.
-  if (occurrence > 1) {
-    return undefined
-  }
-
-  // path.push(obj)
-
-  let result: Serializable
-  if (Array.isArray(obj)) {
-    result = obj.map((item) =>
-      handleCircularReferences(item, path.slice())
-    ) as Serializable[]
-  } else {
-    result = {}
-    for (let key in obj) {
-      ;(result as any)[key] = handleCircularReferences(
-        (obj as any)[key],
-        path.slice()
-      )
-    }
-  }
-
-  path.pop()
-
-  return result
 }

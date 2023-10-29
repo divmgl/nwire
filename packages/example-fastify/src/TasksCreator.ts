@@ -3,7 +3,7 @@ import { Service } from "./Service"
 
 export class TasksCreator extends Service {
   async createBasicTasks() {
-    await this.context.tasks.save("My first test")
-    await this.context.tasks.save("My second test")
+    await this.tasks.save("My first test")
+    await this.tasks.save("My second test")
   }
 }

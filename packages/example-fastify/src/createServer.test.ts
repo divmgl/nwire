@@ -17,8 +17,7 @@ describe("server", function () {
   beforeEach(async (context) => {
     const database = await createDatabase()
 
-    const container = Container
-      //
+    const container = Container.new()
       .register("db", () => database)
       .instance("tasks", SQLiteTaskStore)
       .instance("tasksCreator", TasksCreator)

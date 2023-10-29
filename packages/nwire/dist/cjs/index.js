@@ -21,8 +21,8 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var src_exports = {};
 __export(src_exports, {
   Container: () => Container,
-  Singleton: () => Singleton,
-  WithContextProperties: () => WithContextProperties
+  Service: () => Service,
+  Singleton: () => Singleton
 });
 module.exports = __toCommonJS(src_exports);
 
@@ -77,6 +77,7 @@ var Container = class _Container {
   _cache = /* @__PURE__ */ new Map();
   _transient = /* @__PURE__ */ new Set();
   _base = {};
+  _context;
   _rootContainer;
   _parentContainer;
   constructor(rootContainer, _parentContainer) {
@@ -161,21 +162,25 @@ var Container = class _Container {
   }
   // Add a subcontext to a property of this context
   group(key, decorator) {
-    const groupContainer = decorator(new _Container(this._rootContainer, this));
-    const groupContext = groupContainer.context();
-    this.register(key, () => groupContext);
-    const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
-      (acc, key2) => {
-        return {
-          ...acc,
-          get [key2]() {
-            return groupContext[key2];
-          }
-        };
-      },
-      {}
-    );
-    this._registry.set(key, grouping);
+    this.register(key, () => {
+      const groupContainer = (
+        // @ts-expect-error
+        decorator(new _Container(this._rootContainer, this))
+      );
+      const groupContext = groupContainer.context();
+      const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
+        (acc, key2) => {
+          return Object.assign(acc, {
+            get [key2]() {
+              return groupContext[key2];
+            }
+          });
+        },
+        {}
+      );
+      this._registry.set(key, grouping);
+      return groupContainer.context();
+    });
     return this;
   }
   singleton(key, ClassConstructor, ...args) {
@@ -211,7 +216,7 @@ var Container = class _Container {
 };
 
 // src/Singleton.ts
-function WithContextProperties(Base) {
+function Service(Base = Singleton) {
   return class extends Base {
     constructor(context) {
       super(context);
@@ -235,7 +240,7 @@ var Singleton = class {
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   Container,
-  Singleton,
-  WithContextProperties
+  Service,
+  Singleton
 });
 //# sourceMappingURL=index.js.map

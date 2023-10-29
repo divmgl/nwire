@@ -1,7 +1,7 @@
+import { Service } from "nwire"
 import { AppContext } from "./AppContext"
-import { Service } from "./Service"
 
-export class TasksCreator extends Service {
+export class TasksCreator extends Service<AppContext>() {
   async createBasicTasks() {
     await this.tasks.save("My first test")
     await this.tasks.save("My second test")

@@ -29,7 +29,7 @@ export class Container<TContext extends Context = {}> {
   private _cache: Map<(context: TContext) => unknown, unknown> = new Map()
   private _transient: Set<string> = new Set<string>()
   private _base: Record<string, unknown> = {}
-
+  private _context: Context | undefined
   private _rootContainer: Container | this
   private _parentContainer: Container | this
 
@@ -143,26 +143,27 @@ export class Container<TContext extends Context = {}> {
     key: TNewKey,
     decorator: (container: Container<{}>) => Container<TNewContext>
   ) {
-    // @ts-expect-error
-    // Create a new container for the group and set this container as the parent.
-    const groupContainer = decorator(new Container(this._rootContainer, this))
+    // Create a new container for the group on every resolution and set this container as the parent.
+    this.register(key, () => {
+      const groupContainer = // @ts-expect-error
+        decorator(new Container(this._rootContainer, this))
+      const groupContext = groupContainer.context()
 
-    const groupContext = groupContainer.context()
-    this.register(key, () => groupContext)
+      const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
+        (acc, key) => {
+          return Object.assign(acc, {
+            get [key]() {
+              return groupContext[key]
+            },
+          })
+        },
+        {} as TNewContext
+      )
 
-    const grouping = Array.from(groupContainer._resolvers.keys()).reduce(
-      (acc, key) => {
-        return {
-          ...acc,
-          get [key]() {
-            return groupContext[key]
-          },
-        }
-      },
-      {} as TNewContext
-    )
+      this._registry.set(key as string, grouping)
 
-    this._registry.set(key as string, grouping)
+      return groupContainer.context()
+    })
 
     return this as Container<TContext & { [key in TNewKey]: TNewContext }>
   }

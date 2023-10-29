@@ -12,7 +12,8 @@ export type AppContext = {
 export async function createContext() {
   const database = await createDatabase()
 
-  const context = Container.register("db", () => database)
+  const context = Container.new()
+    .register("db", () => database)
     .instance("tasksCreator", TasksCreator)
     .instance("tasks", SQLiteTaskStore)
     .context<AppContext>()

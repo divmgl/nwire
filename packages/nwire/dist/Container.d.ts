@@ -19,6 +19,7 @@ export declare class Container<TContext extends Context = {}> {
     private _cache;
     private _transient;
     private _base;
+    private _context;
     private _rootContainer;
     private _parentContainer;
     constructor(rootContainer?: Container, _parentContainer?: Container);

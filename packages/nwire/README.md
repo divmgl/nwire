@@ -12,9 +12,9 @@ type MyTypedContext = {
   my: MyService
 }
 
-export class MyService extends Injected<MyTypedContext> {
+export class MyService extends WithContextProperties(Singleton) {
   helloWorld() {
-    return this._context.banner
+    return this.banner
   }
 }
 
@@ -395,7 +395,7 @@ const user = await context.users.find("123")
 the `UsersService` calls `users.findOne`, `nwire` will **lazily** return an instance of
 `UserRepository`.
 
-> ⚠️ `nwire` contexts are not normal objects. `nwire` use a proxy under the hood to evaluate your dependencies as needed. This is an intentional design decision to avoid having to instantiate the entire `Container` for tests.
+> ⚠️ `nwire` contexts are not normal objects. `nwire` uses a proxy under the hood to evaluate your dependencies as needed. This is an intentional design decision to avoid having to instantiate the entire `Container` for tests.
 
 ## License
 

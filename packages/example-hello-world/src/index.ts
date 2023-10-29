@@ -1,17 +1,19 @@
-import { Container, Injected } from "nwire"
+import { Singleton } from "nwire"
+import { Container, Service } from "nwire"
 
-type MyTypedContext = {
+type MyContext = {
   banner: string
   my: MyService
 }
 
-export class MyService extends Injected<MyTypedContext> {
+export class MyService extends Service<MyContext>(Singleton) {
   helloWorld() {
-    return this._context.banner
+    return this.banner
   }
 }
 
-const context = Container.register("banner", () => "Hello world!")
+const context = Container.new()
+  .register("banner", () => "Hello world!")
   .instance("my", MyService)
   .context()
 

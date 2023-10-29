@@ -1,6 +1,6 @@
 import { describe, expect, it, test } from "vitest"
 import { Container } from "./Container"
-import { Singleton, WithContextProperties } from "./Singleton"
+import { Singleton, Service } from "./Singleton"
 
 describe("nwire", () => {
   it("creates a container", () => {
@@ -253,7 +253,7 @@ describe("nwire", () => {
   })
 
   describe("singletons", () => {
-    class A extends WithContextProperties<TestContext>(Singleton) {
+    class A extends Service<TestContext>() {
       test() {
         return this.services.b.something()
       }
@@ -262,7 +262,7 @@ describe("nwire", () => {
         return "1"
       }
     }
-    class B extends WithContextProperties<TestContext>(Singleton) {
+    class B extends Service<TestContext>() {
       test() {
         return this.services.a.something()
       }
@@ -272,7 +272,7 @@ describe("nwire", () => {
       }
     }
 
-    class C extends WithContextProperties<TestContext>(Singleton) {
+    class C extends Service<TestContext>() {
       test() {
         return this.services.a.something()
       }
@@ -282,7 +282,7 @@ describe("nwire", () => {
       }
     }
 
-    class D extends WithContextProperties<TestContext>(Singleton) {
+    class D extends Service<TestContext>() {
       test() {
         return this.services.a.something()
       }
@@ -292,7 +292,7 @@ describe("nwire", () => {
       }
     }
 
-    class E extends WithContextProperties<TestContext>(Singleton) {
+    class E extends Service<TestContext>() {
       test() {
         return this.services.a.something()
       }
@@ -305,15 +305,21 @@ describe("nwire", () => {
       d: D
     }
 
-    type Events = {
-      e: E
-    }
-
     type TestContext = {
+      a: A
       services: Services
     }
 
     it("can resolve references that are not yet registered", () => {
+      const context = Container.new()
+        .group("events", (events) => events.singleton("e", E))
+        .group("services", (services) => services.singleton("a", A))
+        .context()
+
+      expect(context.events.e.test()).toEqual("1")
+    })
+
+    it("can resolve references that are not yet registered by middleware", () => {
       const context = Container.new()
         .middleware((container) =>
           container.group("events", (events) => events.singleton("e", E))
@@ -339,8 +345,6 @@ describe("nwire", () => {
         )
         .context()
 
-      console.log(context.services)
-
       expect(context.services).not.toBeUndefined()
       expect(context.services.b.test()).toEqual("1")
       expect(context.services.a.test()).toEqual("2")
@@ -348,6 +352,15 @@ describe("nwire", () => {
       expect(() => {
         expect(context.services.a.services).toEqual(undefined)
       }).toThrowError()
+    })
+
+    it("can handle instances at the root", () => {
+      const context = Container.new()
+        .singleton("a", A)
+        .group("services", (services) => services.singleton("b", B))
+        .context()
+
+      expect(context.a.test()).toEqual("2")
     })
   })
 })

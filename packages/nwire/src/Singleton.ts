@@ -3,8 +3,8 @@ import { Context } from "./Container"
 type PopulatedSingleton<T> = T & { [key in keyof T]: T[key] }
 
 // Mixin to add context-based properties to a class
-export function WithContextProperties<T extends Context>(
-  Base: any
+export function Service<T extends Context>(
+  Base: any = Singleton
 ): new (context: T) => PopulatedSingleton<T> {
   return class extends Base {
     constructor(context: T) {

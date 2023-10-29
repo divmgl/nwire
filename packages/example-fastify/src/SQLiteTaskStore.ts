@@ -1,8 +1,12 @@
 import { TaskStore } from "./TaskStore"
 import { Task } from "./Task"
-import { Service } from "./Service"
+import { Service } from "nwire"
+import { AppContext } from "./AppContext"
 
-export class SQLiteTaskStore extends Service implements TaskStore {
+export class SQLiteTaskStore
+  extends Service<AppContext>()
+  implements TaskStore
+{
   async get(id: number): Promise<Task | null> {
     return (await this.db.get(`SELECT * FROM tasks WHERE id = ?`, [id])) ?? null
   }

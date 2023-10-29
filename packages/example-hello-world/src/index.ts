@@ -1,4 +1,3 @@
-import { Singleton } from "nwire"
 import { Container, Service } from "nwire"
 
 type MyContext = {
@@ -6,7 +5,7 @@ type MyContext = {
   my: MyService
 }
 
-export class MyService extends Service<MyContext>(Singleton) {
+export class MyService extends Service<MyContext>() {
   helloWorld() {
     return this.banner
   }

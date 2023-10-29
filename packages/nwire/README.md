@@ -5,14 +5,14 @@
 `nwire` is a package that provides simplified dependency injection in Node.js.
 
 ```tsx
-import { Container, Injected } from "nwire"
+import { Container, Service } from "nwire"
 
 type MyTypedContext = {
   banner: string
   my: MyService
 }
 
-export class MyService extends WithContextProperties(Singleton) {
+export class MyService extends Service<MyTypedContext>() {
   helloWorld() {
     return this.banner
   }

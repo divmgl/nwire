@@ -91,7 +91,9 @@ function createAppContext() {
 
 export { createAppContext }
 
-// Note: you can also try to omit the type and let TypeScript infer it for you. Using this approach will avoid having to modify multiple places to introduce/remove dependencies.
+// Note: you can also try to omit the type and let TypeScript infer it for
+// you. Using this approach will avoid having to modify multiple places to 
+// introduce/remove dependencies.
 
 function createAppContext() {
   return Container.new()
@@ -102,7 +104,7 @@ function createAppContext() {
     .context()
 }
 
-type AppContext = typeof ReturnType<createAppContext>
+type AppContext = ReturnType<typeof createAppContext>
 
 export { createAppContext, AppContext }
 

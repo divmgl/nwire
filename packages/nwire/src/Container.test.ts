@@ -34,7 +34,7 @@ describe("nwire", () => {
   })
 
   it("registers middleware", () => {
-    const container = Container.new().middleware((container) => {
+    const container = Container.new().pipe((container) => {
       return container.group("hello", (container) => {
         return container.register("world", () => "world")
       })
@@ -321,10 +321,10 @@ describe("nwire", () => {
 
     it("can resolve references that are not yet registered by middleware", () => {
       const context = Container.new()
-        .middleware((container) =>
+        .pipe((container) =>
           container.group("events", (events) => events.singleton("e", E))
         )
-        .middleware((container) =>
+        .pipe((container) =>
           container.group("services", (services) => services.singleton("a", A))
         )
         .context()

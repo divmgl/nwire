@@ -22,7 +22,7 @@ describe("server", function () {
       .instance("tasks", SQLiteTaskStore)
       .instance("tasksCreator", TasksCreator)
 
-    const server = createServer(container.context<AppContext>())
+    const server = createServer(container.context())
     await server.ready()
 
     context.request = agent(server.server)
